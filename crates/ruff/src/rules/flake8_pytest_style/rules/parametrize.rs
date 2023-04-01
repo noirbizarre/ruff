@@ -167,8 +167,8 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                         checker.stylist,
                                     )
                                 ),
-                                name_range.location,
-                                name_range.end_location,
+                                name_range.start(),
+                                name_range.end(),
                             ));
                         }
                         checker.diagnostics.push(diagnostic);
@@ -198,8 +198,8 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                     }),
                                     checker.stylist,
                                 ),
-                                name_range.location,
-                                name_range.end_location,
+                                name_range.start(),
+                                name_range.end(),
                             ));
                         }
                         checker.diagnostics.push(diagnostic);
@@ -233,7 +233,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                     checker.stylist,
                                 ),
                                 expr.location,
-                                expr.end_location.unwrap(),
+                                expr.end(),
                             ));
                         }
                         checker.diagnostics.push(diagnostic);
@@ -250,7 +250,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                 diagnostic.set_fix(Edit::replacement(
                                     content,
                                     expr.location,
-                                    expr.end_location.unwrap(),
+                                    expr.end(),
                                 ));
                             }
                         }
@@ -287,7 +287,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                     )
                                 ),
                                 expr.location,
-                                expr.end_location.unwrap(),
+                                expr.end(),
                             ));
                         }
                         checker.diagnostics.push(diagnostic);
@@ -304,7 +304,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                 diagnostic.set_fix(Edit::replacement(
                                     content,
                                     expr.location,
-                                    expr.end_location.unwrap(),
+                                    expr.end(),
                                 ));
                             }
                         }
@@ -381,7 +381,7 @@ fn handle_single_name(checker: &mut Checker, expr: &Expr, value: &Expr) {
         diagnostic.set_fix(Edit::replacement(
             unparse_expr(&create_expr(value.node.clone()), checker.stylist),
             expr.location,
-            expr.end_location.unwrap(),
+            expr.end(),
         ));
     }
     checker.diagnostics.push(diagnostic);

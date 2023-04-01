@@ -257,7 +257,7 @@ pub fn typed_argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                             diagnostic.set_fix(Edit::replacement(
                                 "...".to_string(),
                                 default.location,
-                                default.end_location.unwrap(),
+                                default.end(),
                             ));
                         }
 
@@ -284,7 +284,7 @@ pub fn typed_argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                             diagnostic.set_fix(Edit::replacement(
                                 "...".to_string(),
                                 default.location,
-                                default.end_location.unwrap(),
+                                default.end(),
                             ));
                         }
 
@@ -314,7 +314,7 @@ pub fn argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                             diagnostic.set_fix(Edit::replacement(
                                 "...".to_string(),
                                 default.location,
-                                default.end_location.unwrap(),
+                                default.end(),
                             ));
                         }
 
@@ -341,7 +341,7 @@ pub fn argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                             diagnostic.set_fix(Edit::replacement(
                                 "...".to_string(),
                                 default.location,
-                                default.end_location.unwrap(),
+                                default.end(),
                             ));
                         }
 
@@ -370,7 +370,7 @@ pub fn assignment_default_in_stub(checker: &mut Checker, value: &Expr, annotatio
             diagnostic.set_fix(Edit::replacement(
                 "...".to_string(),
                 value.location,
-                value.end_location.unwrap(),
+                value.end(),
             ));
         }
 
