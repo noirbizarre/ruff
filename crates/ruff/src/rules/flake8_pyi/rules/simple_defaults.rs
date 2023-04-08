@@ -251,12 +251,12 @@ pub fn typed_argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                 if arg.node.annotation.is_some() {
                     if !is_valid_default_value_with_annotation(default, checker, true) {
                         let mut diagnostic =
-                            Diagnostic::new(TypedArgumentDefaultInStub, Range::from(default));
+                            Diagnostic::new(TypedArgumentDefaultInStub, default.range());
 
                         if checker.patch(diagnostic.kind.rule()) {
                             diagnostic.set_fix(Edit::replacement(
                                 "...".to_string(),
-                                default.location,
+                                default.start(),
                                 default.end(),
                             ));
                         }
@@ -278,12 +278,12 @@ pub fn typed_argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                 if kwarg.node.annotation.is_some() {
                     if !is_valid_default_value_with_annotation(default, checker, true) {
                         let mut diagnostic =
-                            Diagnostic::new(TypedArgumentDefaultInStub, Range::from(default));
+                            Diagnostic::new(TypedArgumentDefaultInStub, default.range());
 
                         if checker.patch(diagnostic.kind.rule()) {
                             diagnostic.set_fix(Edit::replacement(
                                 "...".to_string(),
-                                default.location,
+                                default.start(),
                                 default.end(),
                             ));
                         }
@@ -308,12 +308,12 @@ pub fn argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                 if arg.node.annotation.is_none() {
                     if !is_valid_default_value_with_annotation(default, checker, true) {
                         let mut diagnostic =
-                            Diagnostic::new(ArgumentDefaultInStub, Range::from(default));
+                            Diagnostic::new(ArgumentDefaultInStub, default.range());
 
                         if checker.patch(diagnostic.kind.rule()) {
                             diagnostic.set_fix(Edit::replacement(
                                 "...".to_string(),
-                                default.location,
+                                default.start(),
                                 default.end(),
                             ));
                         }
@@ -335,12 +335,12 @@ pub fn argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                 if kwarg.node.annotation.is_none() {
                     if !is_valid_default_value_with_annotation(default, checker, true) {
                         let mut diagnostic =
-                            Diagnostic::new(ArgumentDefaultInStub, Range::from(default));
+                            Diagnostic::new(ArgumentDefaultInStub, default.range());
 
                         if checker.patch(diagnostic.kind.rule()) {
                             diagnostic.set_fix(Edit::replacement(
                                 "...".to_string(),
-                                default.location,
+                                default.start(),
                                 default.end(),
                             ));
                         }
@@ -364,12 +364,12 @@ pub fn assignment_default_in_stub(checker: &mut Checker, value: &Expr, annotatio
         return;
     }
     if !is_valid_default_value_with_annotation(value, checker, true) {
-        let mut diagnostic = Diagnostic::new(AssignmentDefaultInStub, Range::from(value));
+        let mut diagnostic = Diagnostic::new(AssignmentDefaultInStub, value.range());
 
         if checker.patch(diagnostic.kind.rule()) {
             diagnostic.set_fix(Edit::replacement(
                 "...".to_string(),
-                value.location,
+                value.start(),
                 value.end(),
             ));
         }

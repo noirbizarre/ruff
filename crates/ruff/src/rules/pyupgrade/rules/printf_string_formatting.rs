@@ -420,7 +420,7 @@ pub(crate) fn printf_string_formatting(checker: &mut Checker, expr: &Expr, right
     // Add the `.format` call.
     contents.push_str(&format!(".format{params_string}"));
 
-    let mut diagnostic = Diagnostic::new(PrintfStringFormatting, Range::from(expr));
+    let mut diagnostic = Diagnostic::new(PrintfStringFormatting, expr.range());
     if checker.patch(diagnostic.kind.rule()) {
         diagnostic.set_fix(Edit::replacement(contents, expr.location, expr.end()));
     }

@@ -221,7 +221,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                             PytestParametrizeNamesWrongType {
                                 expected: names_type,
                             },
-                            Range::from(expr),
+                            expr.range(),
                         );
                         if checker.patch(diagnostic.kind.rule()) {
                             diagnostic.set_fix(Edit::replacement(
@@ -243,7 +243,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                             PytestParametrizeNamesWrongType {
                                 expected: names_type,
                             },
-                            Range::from(expr),
+                            expr.range(),
                         );
                         if checker.patch(diagnostic.kind.rule()) {
                             if let Some(content) = elts_to_csv(elts, checker) {
@@ -272,7 +272,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                             PytestParametrizeNamesWrongType {
                                 expected: names_type,
                             },
-                            Range::from(expr),
+                            expr.range(),
                         );
                         if checker.patch(diagnostic.kind.rule()) {
                             diagnostic.set_fix(Edit::replacement(
@@ -297,7 +297,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                             PytestParametrizeNamesWrongType {
                                 expected: names_type,
                             },
-                            Range::from(expr),
+                            expr.range(),
                         );
                         if checker.patch(diagnostic.kind.rule()) {
                             if let Some(content) = elts_to_csv(elts, checker) {
@@ -374,7 +374,7 @@ fn handle_single_name(checker: &mut Checker, expr: &Expr, value: &Expr) {
         PytestParametrizeNamesWrongType {
             expected: types::ParametrizeNameType::Csv,
         },
-        Range::from(expr),
+        expr.range(),
     );
 
     if checker.patch(diagnostic.kind.rule()) {

@@ -1,3 +1,4 @@
+use ruff_text_size::TextRange;
 use rustpython_parser::ast::{Expr, ExprKind};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic};
@@ -108,7 +109,7 @@ pub fn unnecessary_double_cast_or_process(
                 inner: inner.to_string(),
                 outer: outer.to_string(),
             },
-            Range::from(expr),
+            expr.range(),
         );
         if checker.patch(diagnostic.kind.rule()) {
             diagnostic.try_set_fix(|| {

@@ -6,7 +6,6 @@ use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit, Fix};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::call_path::compose_call_path;
 use ruff_python_ast::helpers;
-use ruff_python_ast::types::Range;
 
 use crate::autofix::actions::get_or_import_symbol;
 use crate::checkers::ast::Checker;
@@ -86,7 +85,7 @@ pub fn suppressible_exception(
                 SuppressibleException {
                     exception: exception.clone(),
                 },
-                Range::from(stmt),
+                stmt.range(),
             );
 
             if checker.patch(diagnostic.kind.rule()) {
@@ -104,9 +103,8 @@ pub fn suppressible_exception(
                         stmt.location,
                         try_ending,
                     );
-                    let handler_line_begin = Location::new(handler.location.row(), 0);
-                    let remove_handler =
-                        Edit::deletion(handler_line_begin, handler.end_location.unwrap());
+                    let handler_line_begin = checker.locator.line_start(handler.start());
+                    let remove_handler = Edit::deletion(handler_line_begin, handler.end());
                     Ok(Fix::from_iter([import_edit, replace_try, remove_handler]))
                 });
             }
