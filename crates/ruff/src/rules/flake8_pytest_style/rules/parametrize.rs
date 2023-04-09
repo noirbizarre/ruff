@@ -5,7 +5,6 @@ use ruff_diagnostics::{AlwaysAutofixableViolation, Violation};
 use ruff_diagnostics::{Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::helpers::{create_expr, unparse_expr};
-use ruff_python_ast::types::Range;
 
 use crate::checkers::ast::Checker;
 use crate::registry::{AsRule, Rule};
@@ -232,7 +231,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                     }),
                                     checker.stylist,
                                 ),
-                                expr.location,
+                                expr.start(),
                                 expr.end(),
                             ));
                         }
@@ -249,7 +248,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                             if let Some(content) = elts_to_csv(elts, checker) {
                                 diagnostic.set_fix(Edit::replacement(
                                     content,
-                                    expr.location,
+                                    expr.start(),
                                     expr.end(),
                                 ));
                             }
@@ -286,7 +285,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                         checker.stylist,
                                     )
                                 ),
-                                expr.location,
+                                expr.start(),
                                 expr.end(),
                             ));
                         }
@@ -303,7 +302,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                             if let Some(content) = elts_to_csv(elts, checker) {
                                 diagnostic.set_fix(Edit::replacement(
                                     content,
-                                    expr.location,
+                                    expr.start(),
                                     expr.end(),
                                 ));
                             }
@@ -344,7 +343,7 @@ fn check_values(checker: &mut Checker, names: &Expr, values: &Expr) {
                         values: values_type,
                         row: values_row_type,
                     },
-                    Range::from(values),
+                    values.range(),
                 ));
             }
             if is_multi_named {
@@ -358,7 +357,7 @@ fn check_values(checker: &mut Checker, names: &Expr, values: &Expr) {
                         values: values_type,
                         row: values_row_type,
                     },
-                    Range::from(values),
+                    values.range(),
                 ));
             }
             if is_multi_named {
@@ -380,7 +379,7 @@ fn handle_single_name(checker: &mut Checker, expr: &Expr, value: &Expr) {
     if checker.patch(diagnostic.kind.rule()) {
         diagnostic.set_fix(Edit::replacement(
             unparse_expr(&create_expr(value.node.clone()), checker.stylist),
-            expr.location,
+            expr.start(),
             expr.end(),
         ));
     }
@@ -402,7 +401,7 @@ fn handle_value_rows(
                             values: values_type,
                             row: values_row_type,
                         },
-                        Range::from(elt),
+                        elt.range(),
                     ));
                 }
             }
@@ -413,7 +412,7 @@ fn handle_value_rows(
                             values: values_type,
                             row: values_row_type,
                         },
-                        Range::from(elt),
+                        elt.range(),
                     ));
                 }
             }

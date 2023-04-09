@@ -2,7 +2,6 @@ use rustpython_parser::ast::{Arguments, Constant, Expr, ExprKind, Operator, Unar
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
-use ruff_python_ast::types::Range;
 use ruff_python_semantic::context::Context;
 
 use crate::checkers::ast::Checker;
@@ -109,17 +108,17 @@ fn is_valid_default_value_with_annotation(
         ExprKind::Constant {
             value: Constant::Str(..),
             ..
-        } => return checker.locator.slice(default).len() <= 50,
+        } => return checker.locator.slice(default.range()).len() <= 50,
         ExprKind::Constant {
             value: Constant::Bytes(..),
             ..
-        } => return checker.locator.slice(default).len() <= 50,
+        } => return checker.locator.slice(default.range()).len() <= 50,
         // Ex) `123`, `True`, `False`, `3.14`
         ExprKind::Constant {
             value: Constant::Int(..) | Constant::Bool(..) | Constant::Float(..),
             ..
         } => {
-            return checker.locator.slice(default).len() <= 10;
+            return checker.locator.slice(default.range()).len() <= 10;
         }
         // Ex) `2j`
         ExprKind::Constant {
@@ -127,7 +126,7 @@ fn is_valid_default_value_with_annotation(
             ..
         } => {
             if *real == 0.0 {
-                return checker.locator.slice(default).len() <= 10;
+                return checker.locator.slice(default.range()).len() <= 10;
             }
         }
         ExprKind::UnaryOp {
@@ -140,7 +139,7 @@ fn is_valid_default_value_with_annotation(
                 ..
             } = &operand.node
             {
-                return checker.locator.slice(operand).len() <= 10;
+                return checker.locator.slice(operand.range()).len() <= 10;
             }
             // Ex) `-2j`
             if let ExprKind::Constant {
@@ -149,7 +148,7 @@ fn is_valid_default_value_with_annotation(
             } = &operand.node
             {
                 if *real == 0.0 {
-                    return checker.locator.slice(operand).len() <= 10;
+                    return checker.locator.slice(operand.range()).len() <= 10;
                 }
             }
             // Ex) `-math.inf`, `-math.pi`, etc.
@@ -185,7 +184,7 @@ fn is_valid_default_value_with_annotation(
                     ..
                 } = &left.node
                 {
-                    return checker.locator.slice(left).len() <= 10;
+                    return checker.locator.slice(left.range()).len() <= 10;
                 } else if let ExprKind::UnaryOp {
                     op: Unaryop::USub,
                     operand,
@@ -197,7 +196,7 @@ fn is_valid_default_value_with_annotation(
                         ..
                     } = &operand.node
                     {
-                        return checker.locator.slice(operand).len() <= 10;
+                        return checker.locator.slice(operand.range()).len() <= 10;
                     }
                 }
             }

@@ -9,6 +9,7 @@ use crate::types::Range;
 
 pub struct Indexer {
     commented_lines: Vec<usize>,
+    // FIXME rewrite to store text ranges
     continuation_lines: Vec<usize>,
     string_ranges: Vec<Range>,
 }

@@ -1,3 +1,4 @@
+use ruff_text_size::TextRange;
 use rustpython_parser::ast::Location;
 
 use ruff_diagnostics::AlwaysAutofixableViolation;
@@ -7,7 +8,6 @@ use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::helpers;
 use ruff_python_ast::newlines::UniversalNewlineIterator;
 use ruff_python_ast::source_code::Locator;
-use ruff_python_ast::types::Range;
 
 /// ## What it does
 /// Checks for strings that contain the control character `BS`.
@@ -181,7 +181,7 @@ pub fn invalid_string_characters(
     autofix: bool,
 ) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
-    let text = locator.slice(Range::new(start, end));
+    let text = locator.slice(TextRange::new(start, end));
 
     for (row, line) in UniversalNewlineIterator::from(text).enumerate() {
         let mut char_offset = 0;
@@ -199,7 +199,7 @@ pub fn invalid_string_characters(
             };
             let location = helpers::to_absolute(Location::new(row + 1, char_offset), start);
             let end_location = Location::new(location.row(), location.column() + 1);
-            let mut diagnostic = Diagnostic::new(rule, Range::new(location, end_location));
+            let mut diagnostic = Diagnostic::new(rule, TextRange::new(location, end_location));
             if autofix {
                 diagnostic.set_fix(Edit::replacement(
                     replacement.to_string(),

@@ -1,5 +1,7 @@
 use anyhow::Result;
+use ruff_text_size::TextLen;
 use rustpython_parser::ast::{Arguments, Expr, ExprKind, Keyword, Location, Stmt, StmtKind};
+use std::ops::Add;
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Violation};
 use ruff_diagnostics::{Diagnostic, Edit};
@@ -7,7 +9,7 @@ use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::call_path::collect_call_path;
 use ruff_python_ast::helpers::collect_arg_names;
 use ruff_python_ast::source_code::Locator;
-use ruff_python_ast::types::Range;
+use ruff_python_ast::visitor;
 use ruff_python_ast::visitor::Visitor;
 use ruff_python_ast::{helpers, visitor};
 
@@ -403,11 +405,8 @@ fn check_fixture_returns(checker: &mut Checker, stmt: &Stmt, name: &str, body: &
                         if checker.patch(diagnostic.kind.rule()) {
                             diagnostic.set_fix(Edit::replacement(
                                 "return".to_string(),
-                                stmt.location,
-                                Location::new(
-                                    stmt.location.row(),
-                                    stmt.location.column() + "yield".len(),
-                                ),
+                                stmt.start(),
+                                stmt.start().add("yield".text_len()),
                             ));
                         }
                         checker.diagnostics.push(diagnostic);
@@ -458,7 +457,7 @@ fn check_fixture_addfinalizer(checker: &mut Checker, args: &Arguments, body: &[S
     if let Some(addfinalizer) = visitor.addfinalizer_call {
         checker.diagnostics.push(Diagnostic::new(
             PytestFixtureFinalizerCallback,
-            Range::from(addfinalizer),
+            addfinalizer.range(),
         ));
     }
 }
@@ -476,8 +475,8 @@ fn check_fixture_marks(checker: &mut Checker, decorators: &[Expr]) {
                 let mut diagnostic =
                     Diagnostic::new(PytestUnnecessaryAsyncioMarkOnFixture, expr.range());
                 if checker.patch(diagnostic.kind.rule()) {
-                    let start = Location::new(expr.location.row(), 0);
-                    let end = Location::new(expr.end_location.unwrap().row() + 1, 0);
+                    let start = Location::new(expr.start().row(), 0);
+                    let end = Location::new(expr.end().row() + 1, 0);
                     diagnostic.set_fix(Edit::deletion(start, end));
                 }
                 checker.diagnostics.push(diagnostic);
@@ -493,8 +492,8 @@ fn check_fixture_marks(checker: &mut Checker, decorators: &[Expr]) {
                 let mut diagnostic =
                     Diagnostic::new(PytestErroneousUseFixturesOnFixture, expr.range());
                 if checker.patch(diagnostic.kind.rule()) {
-                    let start = Location::new(expr.location.row(), 0);
-                    let end = Location::new(expr.end_location.unwrap().row() + 1, 0);
+                    let start = Location::new(expr.start().row(), 0);
+                    let end = Location::new(expr.end().row() + 1, 0);
                     diagnostic.set_fix(Edit::deletion(start, end));
                 }
                 checker.diagnostics.push(diagnostic);
