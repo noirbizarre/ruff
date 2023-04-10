@@ -1948,6 +1948,7 @@ dependencies = [
  "criterion",
  "mimalloc",
  "once_cell",
+ "ruff_python_ast",
  "rustpython-parser",
  "serde",
  "serde_json",

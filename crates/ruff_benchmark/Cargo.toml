@@ -31,7 +31,7 @@ ureq = "2.6.2"
 #ruff.path = "../ruff"
 criterion = { version = "0.4.0"}
 rustpython-parser.workspace = true
-#ruff_python_ast.path = "../ruff_python_ast"
+ruff_python_ast.path = "../ruff_python_ast"
 
 [target.'cfg(target_os = "windows")'.dev-dependencies]
 mimalloc = "0.1.34"
