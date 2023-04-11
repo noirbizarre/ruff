@@ -211,7 +211,7 @@ pub fn convert_for_loop_to_any_all(checker: &mut Checker, stmt: &Stmt, sibling: 
                 );
 
                 // Don't flag if the resulting expression would exceed the maximum line length.
-                if stmt.start().column() + contents.width() > checker.settings.line_length {
+                if checker.locator.line(stmt.start()).width() > checker.settings.line_length {
                     return;
                 }
 
@@ -288,7 +288,7 @@ pub fn convert_for_loop_to_any_all(checker: &mut Checker, stmt: &Stmt, sibling: 
                 );
 
                 // Don't flag if the resulting expression would exceed the maximum line length.
-                if stmt.start().column() + contents.width() > checker.settings.line_length {
+                if checker.locator.line(stmt.start()).width() > checker.settings.line_length {
                     return;
                 }
 

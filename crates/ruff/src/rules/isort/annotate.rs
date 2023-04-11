@@ -1,3 +1,4 @@
+use ruff_text_size::TextRange;
 use rustpython_parser::ast::{Stmt, StmtKind};
 
 use ruff_python_ast::source_code::Locator;
@@ -21,16 +22,17 @@ pub fn annotate_imports<'a>(
                 // Find comments above.
                 let mut atop = vec![];
                 while let Some(comment) =
-                    comments_iter.next_if(|comment| comment.location.row() < import.start().row())
+                    comments_iter.next_if(|comment| comment.start() < import.start())
                 {
                     atop.push(comment);
                 }
 
                 // Find comments inline.
                 let mut inline = vec![];
-                while let Some(comment) = comments_iter
-                    .next_if(|comment| comment.end_location.row() == import.end().row())
-                {
+                while let Some(comment) = comments_iter.next_if(|comment| {
+                    import.end() < comment.start()
+                        && !locator.contains_line_break(TextRange::new(import.end(), comment.end()))
+                }) {
                     inline.push(comment);
                 }
 
@@ -54,7 +56,7 @@ pub fn annotate_imports<'a>(
                 // Find comments above.
                 let mut atop = vec![];
                 while let Some(comment) =
-                    comments_iter.next_if(|comment| comment.location.row() < import.start().row())
+                    comments_iter.next_if(|comment| comment.start() < import.start())
                 {
                     atop.push(comment);
                 }
@@ -65,9 +67,9 @@ pub fn annotate_imports<'a>(
                 // import bar  # noqa`).
                 let mut inline = vec![];
                 if names.len() > 1
-                    || names
-                        .first()
-                        .map_or(false, |alias| alias.start().row() > import.start().row())
+                    || names.first().map_or(false, |alias| {
+                        locator.contains_line_break(TextRange::new(import.start(), alias.start()))
+                    })
                 {
                     while let Some(comment) = comments_iter
                         .next_if(|comment| comment.location.row() == import.start().row())
@@ -81,8 +83,8 @@ pub fn annotate_imports<'a>(
                 for alias in names {
                     // Find comments above.
                     let mut alias_atop = vec![];
-                    while let Some(comment) = comments_iter
-                        .next_if(|comment| comment.location.row() < alias.start().row())
+                    while let Some(comment) =
+                        comments_iter.next_if(|comment| comment.start() < alias.start())
                     {
                         alias_atop.push(comment);
                     }

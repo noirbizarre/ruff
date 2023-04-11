@@ -1,4 +1,3 @@
-use ruff_text_size::TextRange;
 use rustpython_parser::ast::{Arguments, Expr, ExprKind, Location, Stmt, StmtKind};
 
 use ruff_diagnostics::{AutofixKind, Diagnostic, Edit, Violation};
@@ -81,10 +80,7 @@ pub fn lambda_assignment(checker: &mut Checker, target: &Expr, value: &Expr, stm
                 && !has_leading_content(stmt, checker.locator)
                 && !has_trailing_content(stmt, checker.locator)
             {
-                let first_line = checker.locator.slice(TextRange::new(
-                    Location::new(stmt.start().row(), 0),
-                    Location::new(stmt.start().row() + 1, 0),
-                ));
+                let first_line = checker.locator.line(stmt.start());
                 let indentation = &leading_space(first_line);
                 let mut indented = String::new();
                 for (idx, line) in function(id, args, body, checker.stylist)

@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use log::error;
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser::ast::Location;
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
@@ -77,50 +77,44 @@ pub fn invalid_escape_sequence(
     let body = &text[(quote_pos + quote.len())..(text.len() - quote.len())];
 
     if !prefix.contains('r') {
-        for (row_offset, line) in body.universal_newlines().enumerate() {
-            let chars: Vec<char> = line.chars().collect();
-            for col_offset in 0..chars.len() {
-                if chars[col_offset] != '\\' {
+        let mut offset = usize::from(start) + quote_pos + quote.len();
+
+        for line in body.universal_newlines() {
+            let mut chars_iter = line.char_indices().peekable();
+
+            while let Some((i, c)) = chars_iter.next() {
+                if c != '\\' {
                     continue;
                 }
 
                 // If the previous character was also a backslash, skip.
-                if col_offset > 0 && chars[col_offset - 1] == '\\' {
+                if i > 0 && line.as_bytes()[i - 1] == b'\\' {
                     continue;
                 }
 
                 // If we're at the end of the line, skip.
-                if col_offset == chars.len() - 1 {
+                let Some((_, next_char)) = chars_iter.peek() else {
                     continue;
-                }
+                };
 
                 // If the next character is a valid escape sequence, skip.
-                let next_char = chars[col_offset + 1];
                 if VALID_ESCAPE_SEQUENCES.contains(&next_char) {
                     continue;
                 }
 
-                // Compute the location of the escape sequence by offsetting the location of the
-                // string token by the characters we've seen thus far.
-                let col = if row_offset == 0 {
-                    start.column() + prefix.len() + quote.len() + col_offset
-                } else {
-                    col_offset
-                };
-                let location = Location::new(start.row() + row_offset, col);
-                let end_location = Location::new(location.row(), location.column() + 2);
-                let mut diagnostic = Diagnostic::new(
-                    InvalidEscapeSequence(next_char),
-                    TextRange::new(location, end_location),
-                );
+                let location = TextSize::try_from(offset + i).unwrap();
+                let mut range = TextRange::at(location, TextSize::from(2));
+                let mut diagnostic = Diagnostic::new(InvalidEscapeSequence(*next_char), range);
                 if autofix {
                     diagnostic.set_fix(Edit::insertion(
                         r"\".to_string(),
-                        Location::new(location.row(), location.column() + 1),
+                        range.start() + TextSize::from(1),
                     ));
                 }
                 diagnostics.push(diagnostic);
             }
+
+            offset += line.len();
         }
     }
 

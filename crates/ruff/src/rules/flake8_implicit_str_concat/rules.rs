@@ -6,6 +6,7 @@ use rustpython_parser::Tok;
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
+use ruff_python_ast::source_code::Locator;
 
 use crate::rules::flake8_implicit_str_concat::settings::Settings;
 
@@ -118,7 +119,7 @@ impl Violation for ExplicitStringConcatenation {
 }
 
 /// ISC001, ISC002
-pub fn implicit(tokens: &[LexResult], settings: &Settings) -> Vec<Diagnostic> {
+pub fn implicit(tokens: &[LexResult], settings: &Settings, locator: &Locator) -> Vec<Diagnostic> {
     let mut diagnostics = vec![];
     for ((a_start, a_tok, a_end), (b_start, b_tok, b_end)) in tokens
         .iter()
@@ -130,7 +131,7 @@ pub fn implicit(tokens: &[LexResult], settings: &Settings) -> Vec<Diagnostic> {
         .tuple_windows()
     {
         if matches!(a_tok, Tok::String { .. }) && matches!(b_tok, Tok::String { .. }) {
-            if a_end.row() == b_start.row() {
+            if !locator.contains_line_break(TextRange::new(*a_end, *b_start)) {
                 diagnostics.push(Diagnostic::new(
                     SingleLineImplicitStringConcatenation,
                     TextRange::new(*a_start, *b_end),

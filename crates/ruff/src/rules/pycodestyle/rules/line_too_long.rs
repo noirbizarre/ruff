@@ -1,5 +1,4 @@
-use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
+use ruff_text_size::{TextRange, TextSize};
 use unicode_width::UnicodeWidthStr;
 
 use ruff_diagnostics::{Diagnostic, Violation};
@@ -38,7 +37,7 @@ impl Violation for LineTooLong {
 }
 
 /// E501
-pub fn line_too_long(lineno: usize, line: &str, settings: &Settings) -> Option<Diagnostic> {
+pub fn line_too_long(line_range: TextRange, line: &str, settings: &Settings) -> Option<Diagnostic> {
     let line_width = line.width();
     let limit = settings.line_length;
     if is_overlong(
@@ -51,8 +50,8 @@ pub fn line_too_long(lineno: usize, line: &str, settings: &Settings) -> Option<D
         Some(Diagnostic::new(
             LineTooLong(line_width, limit),
             TextRange::new(
-                Location::new(lineno + 1, limit),
-                Location::new(lineno + 1, line.chars().count()),
+                line_range.start() + TextSize::try_from(limit).unwrap(),
+                line_range.end(),
             ),
         ))
     } else {

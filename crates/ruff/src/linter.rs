@@ -88,7 +88,7 @@ pub fn check_path(
     let use_doc_lines = settings.rules.enabled(Rule::DocLineTooLong);
     let mut doc_lines = vec![];
     if use_doc_lines {
-        doc_lines.extend(doc_lines_from_tokens(&tokens));
+        doc_lines.extend(doc_lines_from_tokens(&tokens, locator));
     }
 
     // Run the token-based rules.
@@ -219,7 +219,7 @@ pub fn check_path(
         let ignored = check_noqa(
             &mut diagnostics,
             contents,
-            indexer.commented_lines(),
+            indexer.comment_ranges(),
             &directives.noqa_line_for,
             settings,
             error.as_ref().map_or(autofix, |_| flags::Autofix::Disabled),
@@ -307,7 +307,7 @@ pub fn add_noqa_to_path(path: &Path, package: Option<&Path>, settings: &Settings
         path,
         &diagnostics.0,
         &contents,
-        indexer.commented_lines(),
+        indexer.comment_ranges(),
         &directives.noqa_line_for,
         stylist.line_ending(),
     )
@@ -373,7 +373,7 @@ fn diagnostics_to_messages(
     let file = once_cell::unsync::Lazy::new(|| {
         let mut builder = SourceFileBuilder::new(&path.to_string_lossy());
         if settings.show_source {
-            builder.set_source_code(&locator.to_source_code());
+            builder.set_source_text(locator.contents());
         }
 
         builder.finish()

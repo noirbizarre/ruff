@@ -2,10 +2,10 @@ use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::newlines::{NewlineWithTrailingNewline, StrExt};
 use ruff_python_ast::whitespace;
+use ruff_text_size::{TextLen, TextSize};
 
 use crate::checkers::ast::Checker;
 use crate::docstrings::definition::Docstring;
-use crate::message::Location;
 use crate::registry::AsRule;
 
 #[violation]
@@ -39,13 +39,14 @@ pub fn newline_after_last_paragraph(checker: &mut Checker, docstring: &Docstring
                         Diagnostic::new(NewLineAfterLastParagraph, docstring.expr.range());
                     if checker.patch(diagnostic.kind.rule()) {
                         // Insert a newline just before the end-quote(s).
-                        let num_trailing_quotes = "'''".len();
-                        let num_trailing_spaces = last_line
+                        let num_trailing_quotes = "'''".text_len();
+                        let num_trailing_spaces: TextSize = last_line
                             .chars()
                             .rev()
-                            .skip(num_trailing_quotes)
+                            .skip(usize::from(num_trailing_quotes))
                             .take_while(|c| c.is_whitespace())
-                            .count();
+                            .map(|c| c.text_len())
+                            .sum();
                         let content = format!(
                             "{}{}",
                             checker.stylist.line_ending().as_str(),
@@ -53,16 +54,8 @@ pub fn newline_after_last_paragraph(checker: &mut Checker, docstring: &Docstring
                         );
                         diagnostic.set_fix(Edit::replacement(
                             content,
-                            Location::new(
-                                docstring.expr.end().row(),
-                                docstring.expr.end().column()
-                                    - num_trailing_spaces
-                                    - num_trailing_quotes,
-                            ),
-                            Location::new(
-                                docstring.expr.end().row(),
-                                docstring.expr.end().column() - num_trailing_quotes,
-                            ),
+                            docstring.expr.end() - num_trailing_quotes - num_trailing_spaces,
+                            docstring.expr.end() - num_trailing_quotes,
                         ));
                     }
                     checker.diagnostics.push(diagnostic);

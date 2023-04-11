@@ -4,12 +4,12 @@ use itertools::Itertools;
 use libcst_native::{
     Codegen, CodegenState, ImportNames, ParenthesizableWhitespace, SmallStatement, Statement,
 };
+use ruff_text_size::{TextLen, TextSize};
 use rustpython_parser::ast::{ExcepthandlerKind, Expr, Keyword, Location, Stmt, StmtKind};
 use rustpython_parser::{lexer, Mode, Tok};
 
 use ruff_diagnostics::Edit;
 use ruff_python_ast::helpers;
-use ruff_python_ast::helpers::to_absolute;
 use ruff_python_ast::imports::{AnyImport, Import};
 use ruff_python_ast::newlines::NewlineWithTrailingNewline;
 use ruff_python_ast::source_code::{Indexer, Locator, Stylist};
@@ -102,55 +102,60 @@ fn is_lone_child(child: &Stmt, parent: &Stmt, deleted: &[&Stmt]) -> Result<bool>
 
 /// Return the location of a trailing semicolon following a `Stmt`, if it's part
 /// of a multi-statement line.
-fn trailing_semicolon(stmt: &Stmt, locator: &Locator) -> Option<Location> {
+fn trailing_semicolon(stmt: &Stmt, locator: &Locator) -> Option<TextSize> {
     let contents = locator.after(stmt.end());
-    for (row, line) in NewlineWithTrailingNewline::from(contents).enumerate() {
-        let trimmed = line.trim();
+    let mut offset = stmt.end();
+
+    for line in NewlineWithTrailingNewline::from(contents) {
+        let trimmed = line.trim_start();
+
         if trimmed.starts_with(';') {
-            let column = line
-                .char_indices()
-                .find_map(|(column, char)| if char == ';' { Some(column) } else { None })
-                .unwrap();
-            return Some(to_absolute(Location::new(row + 1, column), stmt.end()));
+            let colon_offset = line.text_len() - trimmed.text_len();
+            return Some(offset + colon_offset);
         }
+
         if !trimmed.starts_with('\\') {
             break;
         }
+
+        offset += line.text_len();
     }
     None
 }
 
+// How about a trivia struct that maps offset -> Trivia
+// where trivia is
+// * whitespace (indent)?
+// * newline
+// * comment
+
 /// Find the next valid break for a `Stmt` after a semicolon.
-fn next_stmt_break(semicolon: Location, locator: &Locator) -> Location {
-    let start_location = Location::new(semicolon.row(), semicolon.column() + 1);
-    let contents = locator.after(start_location);
-    for (row, line) in NewlineWithTrailingNewline::from(contents).enumerate() {
+fn next_stmt_break(semicolon: TextSize, locator: &Locator) -> TextSize {
+    let start_location = semicolon + TextSize::from(1);
+
+    let contents = &locator.contents()[usize::from(start_location)..];
+    let mut offset = start_location;
+    for line in NewlineWithTrailingNewline::from(contents) {
         let trimmed = line.trim();
         // Skip past any continuations.
         if trimmed.starts_with('\\') {
+            offset += line.text_len();
             continue;
         }
+
         return if trimmed.is_empty() {
             // If the line is empty, then despite the previous statement ending in a
             // semicolon, we know that it's not a multi-statement line.
-            to_absolute(Location::new(row + 1, 0), start_location)
+            offset
         } else {
             // Otherwise, find the start of the next statement. (Or, anything that isn't
             // whitespace.)
-            let column = line
-                .char_indices()
-                .find_map(|(column, char)| {
-                    if char.is_whitespace() {
-                        None
-                    } else {
-                        Some(column)
-                    }
-                })
-                .unwrap();
-            to_absolute(Location::new(row + 1, column), start_location)
+            let relative_offset = line.chars().position(|c| !c.is_whitespace()).unwrap();
+            offset + TextSize::try_from(relative_offset).unwrap()
         };
     }
-    Location::new(start_location.row() + 1, 0)
+
+    locator.line_end(start_location)
 }
 
 /// Return `true` if a `Stmt` occurs at the end of a file.
@@ -199,17 +204,15 @@ pub fn delete_stmt(
         } else if helpers::has_leading_content(stmt, locator) {
             Edit::deletion(stmt.start(), stmt.end())
         } else if helpers::preceded_by_continuation(stmt, indexer) {
-            if is_end_of_file(stmt, locator) && stmt.start().column() == 0 {
+            if is_end_of_file(stmt, locator) && locator.is_at_start_of_line(stmt.start()) {
                 // Special-case: a file can't end in a continuation.
                 Edit::replacement(stylist.line_ending().to_string(), stmt.start(), stmt.end())
             } else {
                 Edit::deletion(stmt.start(), stmt.end())
             }
         } else {
-            Edit::deletion(
-                Location::new(stmt.start().row(), 0),
-                Location::new(stmt.end().row() + 1, 0),
-            )
+            let range = locator.lines_range(stmt.range());
+            Edit::deletion(range.start(), range.end())
         })
     }
 }
@@ -332,7 +335,7 @@ pub fn remove_unused_imports<'a>(
 
         Ok(Edit::replacement(
             state.to_string(),
-            stmt.location,
+            stmt.start(),
             stmt.end(),
         ))
     }
@@ -373,7 +376,7 @@ pub fn remove_argument(
                     fix_start = Some(if remove_parentheses {
                         start
                     } else {
-                        Location::new(start.row(), start.column() + 1)
+                        start + TextSize::from(1)
                     });
                 }
                 count += 1;
@@ -385,7 +388,7 @@ pub fn remove_argument(
                     fix_end = Some(if remove_parentheses {
                         end
                     } else {
-                        Location::new(end.row(), end.column() - 1)
+                        end - TextSize::from(1)
                     });
                     break;
                 }
@@ -539,19 +542,13 @@ mod tests {
         let program = parser::parse_program(contents, "<filename>")?;
         let stmt = program.first().unwrap();
         let locator = Locator::new(contents);
-        assert_eq!(
-            trailing_semicolon(stmt, &locator),
-            Some(Location::new(1, 5))
-        );
+        assert_eq!(trailing_semicolon(stmt, &locator), Some(Location::from(5)));
 
         let contents = "x = 1 ; y = 1";
         let program = parser::parse_program(contents, "<filename>")?;
         let stmt = program.first().unwrap();
         let locator = Locator::new(contents);
-        assert_eq!(
-            trailing_semicolon(stmt, &locator),
-            Some(Location::new(1, 6))
-        );
+        assert_eq!(trailing_semicolon(stmt, &locator), Some(Location::from(6)));
 
         let contents = r#"
 x = 1 \
@@ -561,10 +558,7 @@ x = 1 \
         let program = parser::parse_program(contents, "<filename>")?;
         let stmt = program.first().unwrap();
         let locator = Locator::new(contents);
-        assert_eq!(
-            trailing_semicolon(stmt, &locator),
-            Some(Location::new(2, 2))
-        );
+        assert_eq!(trailing_semicolon(stmt, &locator), Some(Location::from(10)));
 
         Ok(())
     }
@@ -574,15 +568,15 @@ x = 1 \
         let contents = "x = 1; y = 1";
         let locator = Locator::new(contents);
         assert_eq!(
-            next_stmt_break(Location::new(1, 4), &locator),
-            Location::new(1, 5)
+            next_stmt_break(Location::from(4), &locator),
+            Location::from(5)
         );
 
         let contents = "x = 1 ; y = 1";
         let locator = Locator::new(contents);
         assert_eq!(
-            next_stmt_break(Location::new(1, 5), &locator),
-            Location::new(1, 6)
+            next_stmt_break(Location::from(5), &locator),
+            Location::from(6)
         );
 
         let contents = r#"
@@ -592,8 +586,8 @@ x = 1 \
         .trim();
         let locator = Locator::new(contents);
         assert_eq!(
-            next_stmt_break(Location::new(2, 2), &locator),
-            Location::new(2, 4)
+            next_stmt_break(Location::from(10), &locator),
+            Location::from(12)
         );
     }
 }

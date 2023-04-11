@@ -9,6 +9,7 @@ use rustpython_parser::{lexer, Mode, Tok};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
+use ruff_python_ast::source_code::Locator;
 use ruff_python_ast::str::{leading_quote, trailing_quote};
 use ruff_python_ast::whitespace::indentation;
 use ruff_python_stdlib::identifiers::is_identifier;
@@ -137,11 +138,11 @@ fn percent_to_format(format_string: &CFormatString) -> String {
 }
 
 /// If a tuple has one argument, remove the comma; otherwise, return it as-is.
-fn clean_params_tuple(checker: &mut Checker, right: &Expr) -> String {
+fn clean_params_tuple(checker: &mut Checker, right: &Expr, locator: &Locator) -> String {
     let mut contents = checker.locator.slice(right.range()).to_string();
     if let ExprKind::Tuple { elts, .. } = &right.node {
         if elts.len() == 1 {
-            if right.start().row() == right.end().row() {
+            if !locator.contains_line_break(right.range()) {
                 for (i, character) in contents.chars().rev().enumerate() {
                     if character == ',' {
                         let correct_index = contents.len() - i - 1;
@@ -157,8 +158,12 @@ fn clean_params_tuple(checker: &mut Checker, right: &Expr) -> String {
 
 /// Converts a dictionary to a function call while preserving as much styling as
 /// possible.
-fn clean_params_dictionary(checker: &mut Checker, right: &Expr) -> Option<String> {
-    let is_multi_line = right.start().row() < right.end().row();
+fn clean_params_dictionary(
+    checker: &mut Checker,
+    right: &Expr,
+    locator: &Locator,
+) -> Option<String> {
+    let is_multi_line = locator.contains_line_break(right.range());
     let mut contents = String::new();
     if let ExprKind::Dict { keys, values } = &right.node {
         let mut arguments: Vec<String> = vec![];
@@ -388,9 +393,9 @@ pub(crate) fn printf_string_formatting(checker: &mut Checker, expr: &Expr, right
                 return;
             }
         }
-        ExprKind::Tuple { .. } => clean_params_tuple(checker, right),
+        ExprKind::Tuple { .. } => clean_params_tuple(checker, right, locator),
         ExprKind::Dict { .. } => {
-            if let Some(params_string) = clean_params_dictionary(checker, right) {
+            if let Some(params_string) = clean_params_dictionary(checker, right, locator) {
                 params_string
             } else {
                 return;

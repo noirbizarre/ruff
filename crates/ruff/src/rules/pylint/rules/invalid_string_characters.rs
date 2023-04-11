@@ -1,11 +1,10 @@
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextLen, TextRange, TextSize};
 use rustpython_parser::ast::Location;
 
 use ruff_diagnostics::AlwaysAutofixableViolation;
 use ruff_diagnostics::Edit;
 use ruff_diagnostics::{Diagnostic, DiagnosticKind};
 use ruff_macros::{derive_message_formats, violation};
-use ruff_python_ast::helpers;
 use ruff_python_ast::newlines::UniversalNewlineIterator;
 use ruff_python_ast::source_code::Locator;
 
@@ -182,11 +181,11 @@ pub fn invalid_string_characters(
 ) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     let text = locator.slice(TextRange::new(start, end));
+    let mut offset = start;
 
-    for (row, line) in UniversalNewlineIterator::from(text).enumerate() {
-        let mut char_offset = 0;
-        for char in line.chars() {
-            let (replacement, rule): (&str, DiagnosticKind) = match char {
+    for line in UniversalNewlineIterator::from(text) {
+        for (column, match_) in line.match_indices(&['\x08', '\x1A', '\x1B', '\0', '\u{200b}']) {
+            let (replacement, rule): (&str, DiagnosticKind) = match match_.chars().next().unwrap() {
                 '\x08' => ("\\b", InvalidCharacterBackspace.into()),
                 '\x1A' => ("\\x1A", InvalidCharacterSub.into()),
                 '\x1B' => ("\\x1B", InvalidCharacterEsc.into()),
@@ -197,19 +196,22 @@ pub fn invalid_string_characters(
                     continue;
                 }
             };
-            let location = helpers::to_absolute(Location::new(row + 1, char_offset), start);
-            let end_location = Location::new(location.row(), location.column() + 1);
-            let mut diagnostic = Diagnostic::new(rule, TextRange::new(location, end_location));
+            let location = offset + TextSize::try_from(column).unwrap();
+            let range = TextRange::at(location, match_.chars().next().unwrap().text_len());
+
+            let mut diagnostic = Diagnostic::new(rule, range);
             if autofix {
                 diagnostic.set_fix(Edit::replacement(
                     replacement.to_string(),
-                    location,
-                    end_location,
+                    range.start(),
+                    range.end(),
                 ));
             }
             diagnostics.push(diagnostic);
             char_offset += 1;
         }
+
+        offset += line.text_len();
     }
 
     diagnostics

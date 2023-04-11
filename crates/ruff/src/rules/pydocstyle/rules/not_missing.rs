@@ -9,7 +9,6 @@ use ruff_text_size::TextRange;
 
 use crate::checkers::ast::Checker;
 use crate::docstrings::definition::{Definition, DefinitionKind};
-use crate::message::Location;
 use crate::registry::Rule;
 
 #[violation]
@@ -107,7 +106,7 @@ pub fn not_missing(checker: &mut Checker, definition: &Definition, visibility: V
             {
                 checker.diagnostics.push(Diagnostic::new(
                     UndocumentedPublicModule,
-                    TextRange::new(Location::new(1, 0), Location::new(1, 0)),
+                    TextRange::default(),
                 ));
             }
             false
@@ -120,7 +119,7 @@ pub fn not_missing(checker: &mut Checker, definition: &Definition, visibility: V
             {
                 checker.diagnostics.push(Diagnostic::new(
                     UndocumentedPublicPackage,
-                    TextRange::new(Location::new(1, 0), Location::new(1, 0)),
+                    TextRange::default(),
                 ));
             }
             false

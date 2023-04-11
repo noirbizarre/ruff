@@ -193,7 +193,7 @@ pub fn convert_named_tuple_functional_to_class(
         }
     };
     // TODO(charlie): Preserve indentation, to remove the first-column requirement.
-    let fixable = stmt.start().column() == 0;
+    let fixable = checker.locator.is_at_start_of_line(stmt.start());
     let mut diagnostic = Diagnostic::new(
         ConvertNamedTupleFunctionalToClass {
             name: typename.to_string(),

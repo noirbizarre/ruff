@@ -1,7 +1,5 @@
 use anyhow::{bail, Result};
 use libcst_native::{Codegen, CodegenState, CompoundStatement, Statement, Suite, With};
-use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
 
 use ruff_diagnostics::Edit;
 use ruff_python_ast::source_code::{Locator, Stylist};
@@ -21,10 +19,7 @@ pub(crate) fn fix_multiple_with_statements(
     };
 
     // Extract the module text.
-    let contents = locator.slice(TextRange::new(
-        Location::new(stmt.start().row(), 0),
-        Location::new(stmt.end().row() + 1, 0),
-    ));
+    let contents = locator.lines(stmt.range());
 
     // If the block is indented, "embed" it in a function definition, to preserve
     // indentation while retaining valid source code. (We'll strip the prefix later
@@ -95,9 +90,7 @@ pub(crate) fn fix_multiple_with_statements(
             .to_string()
     };
 
-    Ok(Edit::replacement(
-        contents,
-        Location::new(stmt.start().row(), 0),
-        Location::new(stmt.end().row() + 1, 0),
-    ))
+    let range = locator.lines_range(stmt.range());
+
+    Ok(Edit::replacement(contents, range.start(), range.end()))
 }

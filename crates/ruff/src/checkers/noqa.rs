@@ -18,7 +18,7 @@ use crate::settings::{flags, Settings};
 pub fn check_noqa(
     diagnostics: &mut Vec<Diagnostic>,
     contents: &str,
-    commented_lines: &[usize],
+    comment_ranges: &[TextRange],
     noqa_line_for: &IntMap<usize, usize>,
     settings: &Settings,
     autofix: flags::Autofix,
@@ -28,7 +28,7 @@ pub fn check_noqa(
     let lines: Vec<&str> = contents.universal_newlines().collect();
 
     // Identify any codes that are globally exempted (within the current file).
-    let exemption = noqa::file_exemption(&lines, commented_lines);
+    let exemption = noqa::file_exemption(contents, comment_ranges);
 
     // Map from line number to `noqa` directive on that line, along with any codes
     // that were matched by the directive.
@@ -36,10 +36,10 @@ pub fn check_noqa(
 
     // Extract all `noqa` directives.
     if enforce_noqa {
-        for lineno in commented_lines {
+        for range in comment_ranges {
             noqa_directives
                 .entry(lineno - 1)
-                .or_insert_with(|| (noqa::extract_noqa_directive(lines[lineno - 1]), vec![]));
+                .or_insert_with(|| (noqa::extract_noqa_directive(&contents[range]), vec![]));
         }
     }
 

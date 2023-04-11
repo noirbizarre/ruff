@@ -4,7 +4,7 @@ use itertools::Itertools;
 use log::error;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use ruff_text_size::{TextRange, TextSize};
+use ruff_text_size::{TextLen, TextRange, TextSize};
 use rustc_hash::{FxHashMap, FxHashSet};
 use rustpython_parser::ast::{
     Arguments, Cmpop, Constant, Excepthandler, ExcepthandlerKind, Expr, ExprKind, Keyword,
@@ -887,12 +887,13 @@ pub fn trailing_comment_start_offset<T>(
 }
 
 /// Return the number of trailing empty lines following a statement.
-pub fn count_trailing_lines(stmt: &Stmt, locator: &Locator) -> usize {
+pub fn count_trailing_lines_text_len(stmt: &Stmt, locator: &Locator) -> TextSize {
     let line_end = locator.line_end(stmt.end());
     let rest = &locator.contents()[usize::from(line_end)..];
     rest.universal_newlines()
         .take_while(|line| line.trim().is_empty())
-        .count()
+        .map(|line| line.text_len())
+        .sum()
 }
 
 /// Return the range of the first parenthesis pair after a given [`Location`].

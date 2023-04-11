@@ -8,10 +8,12 @@ mod junit;
 mod pylint;
 mod text;
 
+use ruff_text_size::{TextRange, TextSize};
 use rustc_hash::FxHashMap;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::io::Write;
+use std::ops::Deref;
 
 pub use azure::AzureEmitter;
 pub use github::GithubEmitter;
@@ -25,13 +27,12 @@ pub use text::TextEmitter;
 
 use crate::jupyter::JupyterIndex;
 use ruff_diagnostics::{Diagnostic, DiagnosticKind, Fix};
-use ruff_python_ast::source_code::SourceFile;
+use ruff_python_ast::source_code::{SourceFile, SourceLocation};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Message {
     pub kind: DiagnosticKind,
-    pub location: Location,
-    pub end_location: Location,
+    pub range: TextRange,
     pub fix: Fix,
     pub file: SourceFile,
     pub noqa_row: usize,
@@ -41,8 +42,7 @@ impl Message {
     pub fn from_diagnostic(diagnostic: Diagnostic, file: SourceFile, noqa_row: usize) -> Self {
         Self {
             kind: diagnostic.kind,
-            location: Location::new(diagnostic.start().row(), diagnostic.start().column() + 1),
-            end_location: Location::new(diagnostic.end().row(), diagnostic.end().column() + 1),
+            range: diagnostic.range(),
             fix: diagnostic.fix,
             file,
             noqa_row,
@@ -52,15 +52,27 @@ impl Message {
     pub fn filename(&self) -> &str {
         self.file.name()
     }
+
+    pub fn compute_start_location(&self) -> SourceLocation {
+        self.file.source_code().source_location(self.start())
+    }
+
+    pub fn compute_end_location(&self) -> SourceLocation {
+        self.file.source_code().source_location(self.end())
+    }
+
+    pub const fn start(&self) -> TextSize {
+        self.range.start()
+    }
+
+    pub const fn end(&self) -> TextSize {
+        self.range.end()
+    }
 }
 
 impl Ord for Message {
     fn cmp(&self, other: &Self) -> Ordering {
-        (self.filename(), self.location.row(), self.location.column()).cmp(&(
-            other.filename(),
-            other.location.row(),
-            other.location.column(),
-        ))
+        (self.filename(), self.start()).cmp(&(other.filename(), other.start()))
     }
 }
 
@@ -70,13 +82,28 @@ impl PartialOrd for Message {
     }
 }
 
-fn group_messages_by_filename(messages: &[Message]) -> BTreeMap<&str, Vec<&Message>> {
+struct MessageWithLocation<'a> {
+    message: &'a Message,
+    start_location: SourceLocation,
+}
+
+impl Deref for MessageWithLocation<'_> {
+    type Target = Message;
+    fn deref(&self) -> &Self::Target {
+        self.message
+    }
+}
+
+fn group_messages_by_filename(messages: &[Message]) -> BTreeMap<&str, Vec<MessageWithLocation>> {
     let mut grouped_messages = BTreeMap::default();
     for message in messages {
         grouped_messages
             .entry(message.filename())
             .or_insert_with(Vec::new)
-            .push(message);
+            .push(MessageWithLocation {
+                message,
+                start_location: message.compute_start_location(),
+            });
     }
     grouped_messages
 }

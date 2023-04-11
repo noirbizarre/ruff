@@ -3,7 +3,7 @@ use libcst_native::{
     Codegen, CodegenState, CompoundStatement, Expression, ParenthesizableWhitespace,
     SmallStatement, Statement, Suite,
 };
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser::ast::{Expr, Location};
 use rustpython_parser::{lexer, Mode, Tok};
 
@@ -100,7 +100,8 @@ pub fn remove_import_members(contents: &str, members: &[&str]) -> String {
         if let Tok::Name { name } = &tok {
             if matches!(prev_tok, Some(Tok::As)) {
                 // Adjust the location to take the alias into account.
-                names.last_mut().unwrap().end() = end;
+                let last_range = names.last_mut().unwrap();
+                *last_range = TextRange::new(last_range.start(), end);
             } else {
                 if members.contains(&name.as_str()) {
                     removal_indices.push(names.len());
@@ -116,7 +117,7 @@ pub fn remove_import_members(contents: &str, members: &[&str]) -> String {
     // Reconstruct the source code by skipping any names that are in `members`.
     let locator = Locator::new(contents);
     let mut output = String::with_capacity(contents.len());
-    let mut last_pos: Location = Location::new(1, 0);
+    let mut last_pos: Location = TextSize::default();
     let mut is_first = true;
     for index in 0..names.len() {
         if !removal_indices.contains(&index) {
@@ -127,7 +128,7 @@ pub fn remove_import_members(contents: &str, members: &[&str]) -> String {
         let (start_location, end_location) = if is_first {
             (names[index].start(), names[index + 1].start())
         } else {
-            (commas[index - 1].location, names[index].end())
+            (commas[index - 1].start(), names[index].end())
         };
 
         // Add all contents from `last_pos` to `fix.location`.

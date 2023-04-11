@@ -1,5 +1,4 @@
 use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
@@ -35,16 +34,10 @@ impl Violation for BidirectionalUnicode {
 }
 
 /// PLE2502
-pub fn bidirectional_unicode(lineno: usize, line: &str) -> Vec<Diagnostic> {
+pub fn bidirectional_unicode(range: TextRange, line: &str) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     if line.contains(BIDI_UNICODE) {
-        diagnostics.push(Diagnostic::new(
-            BidirectionalUnicode,
-            TextRange::new(
-                Location::new(lineno + 1, 0),
-                Location::new((lineno + 1) + 1, 0),
-            ),
-        ));
+        diagnostics.push(Diagnostic::new(BidirectionalUnicode, range));
     }
     diagnostics
 }

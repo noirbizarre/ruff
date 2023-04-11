@@ -54,15 +54,14 @@ pub fn commented_out_code(
     settings: &Settings,
     autofix: flags::Autofix,
 ) -> Option<Diagnostic> {
-    let location = Location::new(start.row(), 0);
-    let end_location = Location::new(end.row() + 1, 0);
-    let line = locator.slice(TextRange::new(location, end_location));
+    let line = locator.lines(TextRange::new(start, end));
 
     // Verify that the comment is on its own line, and that it contains code.
     if is_standalone_comment(line) && comment_contains_code(line, &settings.task_tags[..]) {
         let mut diagnostic = Diagnostic::new(CommentedOutCode, TextRange::new(start, end));
         if autofix.into() && settings.rules.should_fix(Rule::CommentedOutCode) {
-            diagnostic.set_fix(Edit::deletion(location, end_location));
+            let range = locator.lines_range(TextRange::new(start, end));
+            diagnostic.set_fix(Edit::deletion(range.start(), range.end()));
         }
         Some(diagnostic)
     } else {

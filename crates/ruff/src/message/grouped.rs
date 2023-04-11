@@ -1,7 +1,9 @@
 use crate::fs::relativize_path;
 use crate::jupyter::JupyterIndex;
 use crate::message::text::{MessageCodeFrame, RuleCodeAndBody};
-use crate::message::{group_messages_by_filename, Emitter, EmitterContext, Message};
+use crate::message::{
+    group_messages_by_filename, Emitter, EmitterContext, Message, MessageWithLocation,
+};
 use colored::Colorize;
 use std::fmt::{Display, Formatter};
 use std::io::Write;
@@ -29,20 +31,17 @@ impl Emitter for GroupedEmitter {
         for (filename, messages) in group_messages_by_filename(messages) {
             // Compute the maximum number of digits in the row and column, for messages in
             // this file.
-            let row_length = num_digits(
-                messages
-                    .iter()
-                    .map(|message| message.location.row())
-                    .max()
-                    .unwrap(),
-            );
-            let column_length = num_digits(
-                messages
-                    .iter()
-                    .map(|message| message.location.column())
-                    .max()
-                    .unwrap(),
-            );
+
+            let mut max_row_length = OneIndexed::MIN;
+            let mut max_column_length = OneIndexed::MIN;
+
+            for message in &messages {
+                max_row_length = max_row_length.max(message.start_location.row);
+                max_column_length = max_column_length.max(message.start_location.column);
+            }
+
+            let row_length = calculate_print_width(max_row_length);
+            let column_length = calculate_print_width(max_column_length);
 
             // Print the filename.
             writeln!(writer, "{}:", relativize_path(filename).underline())?;
@@ -69,7 +68,7 @@ impl Emitter for GroupedEmitter {
 }
 
 struct DisplayGroupedMessage<'a> {
-    message: &'a Message,
+    message: MessageWithLocation<'a>,
     show_fix_status: bool,
     row_length: usize,
     column_length: usize,
@@ -78,12 +77,16 @@ struct DisplayGroupedMessage<'a> {
 
 impl Display for DisplayGroupedMessage<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let message = self.message;
+        let MessageWithLocation {
+            message,
+            start_location,
+        } = &self.message;
 
         write!(
             f,
             "  {row_padding}",
-            row_padding = " ".repeat(self.row_length - num_digits(message.location.row()))
+            row_padding =
+                " ".repeat(self.row_length.get() - calculate_print_width(start_location.row).get())
         )?;
 
         // Check if we're working on a jupyter notebook and translate positions with cell accordingly
@@ -91,22 +94,24 @@ impl Display for DisplayGroupedMessage<'_> {
             write!(
                 f,
                 "cell {cell}{sep}",
-                cell = jupyter_index.row_to_cell[message.location.row()],
+                cell = jupyter_index.row_to_cell[start_location.row.get()],
                 sep = ":".cyan()
             )?;
             (
-                jupyter_index.row_to_row_in_cell[message.location.row()] as usize,
-                message.location.column(),
+                jupyter_index.row_to_row_in_cell[start_location.row.get()] as usize,
+                start_location.column.get(),
             )
         } else {
-            (message.location.row(), message.location.column())
+            (start_location.row.get(), start_location.column.get())
         };
 
         writeln!(
             f,
             "{row}{sep}{col}{col_padding} {code_and_body}",
             sep = ":".cyan(),
-            col_padding = " ".repeat(self.column_length - num_digits(message.location.column())),
+            col_padding = " ".repeat(
+                self.column_length.get() - calculate_print_width(start_location.column).get()
+            ),
             code_and_body = RuleCodeAndBody {
                 message_kind: &message.kind,
                 show_fix_status: self.show_fix_status

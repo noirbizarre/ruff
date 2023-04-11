@@ -1,5 +1,7 @@
 use crate::source_code::SourceLocation;
 use ruff_text_size::{TextLen, TextRange, TextSize};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::num::NonZeroUsize;
@@ -181,6 +183,7 @@ impl IndexKind {
 /// Internally this is represented as a [`NonZeroUsize`], this enables some
 /// memory optimizations
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct OneIndexed(NonZeroUsize);
 
 impl OneIndexed {

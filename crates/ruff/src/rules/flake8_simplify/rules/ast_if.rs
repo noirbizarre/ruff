@@ -513,7 +513,7 @@ pub fn use_ternary_operator(checker: &mut Checker, stmt: &Stmt, parent: Option<&
     let contents = unparse_stmt(&ternary, checker.stylist);
 
     // Don't flag if the resulting expression would exceed the maximum line length.
-    if stmt.start().column() + contents.width() > checker.settings.line_length {
+    if checker.locator.line(stmt.start()).width() > checker.settings.line_length {
         return;
     }
 
@@ -856,7 +856,7 @@ pub fn use_dict_get_with_default(
     );
 
     // Don't flag if the resulting expression would exceed the maximum line length.
-    if stmt.start().column() + contents.width() > checker.settings.line_length {
+    if checker.locator.line(stmt.start()).width() > checker.settings.line_length {
         return;
     }
 

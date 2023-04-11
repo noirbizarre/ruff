@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextLen, TextRange, TextSize};
 use rustc_hash::FxHashMap;
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, DiagnosticKind, Edit};
@@ -1695,20 +1695,14 @@ pub fn ambiguous_unicode_character(
 
     let text = locator.slice(TextRange::new(start, end));
 
-    let mut col_offset = 0;
-    let mut row_offset = 0;
-    for current_char in text.chars() {
+    for (relative_offset, current_char) in text.char_indices() {
         if !current_char.is_ascii() {
             // Search for confusing characters.
             if let Some(representant) = CONFUSABLES.get(&(current_char as u32)).copied() {
                 if !settings.allowed_confusables.contains(&current_char) {
-                    let col = if row_offset == 0 {
-                        start.column() + col_offset
-                    } else {
-                        col_offset
-                    };
-                    let location = Location::new(start.row() + row_offset, col);
-                    let end_location = Location::new(location.row(), location.column() + 1);
+                    let start = TextSize::try_from(relative_offset).unwrap() + start;
+                    let end = start + current_char.text_len();
+
                     let mut diagnostic = Diagnostic::new::<DiagnosticKind>(
                         match context {
                             Context::String => AmbiguousUnicodeCharacterString {
@@ -1727,28 +1721,20 @@ pub fn ambiguous_unicode_character(
                             }
                             .into(),
                         },
-                        TextRange::new(location, end_location),
+                        TextRange::new(start, end),
                     );
                     if settings.rules.enabled(diagnostic.kind.rule()) {
                         if autofix.into() && settings.rules.should_fix(diagnostic.kind.rule()) {
                             diagnostic.set_fix(Edit::replacement(
                                 (representant as char).to_string(),
-                                location,
-                                end_location,
+                                start,
+                                end,
                             ));
                         }
                         diagnostics.push(diagnostic);
                     }
                 }
             }
-        }
-
-        // Track the offset from the start position as we iterate over the body.
-        if current_char == '\n' {
-            col_offset = 0;
-            row_offset += 1;
-        } else {
-            col_offset += 1;
         }
     }
 

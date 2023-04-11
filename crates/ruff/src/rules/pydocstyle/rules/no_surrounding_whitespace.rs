@@ -2,10 +2,10 @@ use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::newlines::NewlineWithTrailingNewline;
 use ruff_python_ast::str::leading_quote;
+use ruff_text_size::TextLen;
 
 use crate::checkers::ast::Checker;
 use crate::docstrings::definition::Docstring;
-use crate::message::Location;
 use crate::registry::AsRule;
 use crate::rules::pydocstyle::helpers::ends_with_backslash;
 
@@ -50,14 +50,8 @@ pub fn no_surrounding_whitespace(checker: &mut Checker, docstring: &Docstring) {
             {
                 diagnostic.set_fix(Edit::replacement(
                     trimmed.to_string(),
-                    Location::new(
-                        docstring.expr.start().row(),
-                        docstring.expr.start().column() + pattern.len(),
-                    ),
-                    Location::new(
-                        docstring.expr.start().row(),
-                        docstring.expr.start().column() + pattern.len() + line.chars().count(),
-                    ),
+                    docstring.expr.start() + pattern.text_len(),
+                    docstring.expr.start() + pattern.text_len() + line.text_len(),
                 ));
             }
         }

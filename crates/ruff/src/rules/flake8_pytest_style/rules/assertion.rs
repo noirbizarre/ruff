@@ -5,10 +5,8 @@ use libcst_native::{
     ParenthesizableWhitespace, ParenthesizedNode, SimpleStatementLine, SimpleWhitespace,
     SmallStatement, Statement, Suite, TrailingWhitespace, UnaryOp, UnaryOperation,
 };
-use ruff_text_size::TextRange;
 use rustpython_parser::ast::{
-    Boolop, Excepthandler, ExcepthandlerKind, Expr, ExprKind, Keyword, Location, Stmt, StmtKind,
-    Unaryop,
+    Boolop, Excepthandler, ExcepthandlerKind, Expr, ExprKind, Keyword, Stmt, StmtKind, Unaryop,
 };
 
 use ruff_diagnostics::{AutofixKind, Diagnostic, Edit, Violation};
@@ -325,10 +323,7 @@ fn fix_composite_condition(stmt: &Stmt, locator: &Locator, stylist: &Stylist) ->
     };
 
     // Extract the module text.
-    let contents = locator.slice(TextRange::new(
-        Location::new(stmt.start().row(), 0),
-        Location::new(stmt.end().row() + 1, 0),
-    ));
+    let contents = locator.lines(stmt.range());
 
     // "Embed" it in a function definition, to preserve indentation while retaining valid source
     // code. (We'll strip the prefix later on.)
@@ -419,11 +414,9 @@ fn fix_composite_condition(stmt: &Stmt, locator: &Locator, stylist: &Stylist) ->
         .unwrap()
         .to_string();
 
-    Ok(Edit::replacement(
-        contents,
-        Location::new(stmt.start().row(), 0),
-        Location::new(stmt.end().row() + 1, 0),
-    ))
+    let range = locator.lines_range(stmt.range());
+
+    Ok(Edit::replacement(contents, range.start(), range.end()))
 }
 
 /// PT018

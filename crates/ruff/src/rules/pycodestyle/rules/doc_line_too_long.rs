@@ -1,5 +1,4 @@
 use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
 use unicode_width::UnicodeWidthStr;
 
 use ruff_diagnostics::{Diagnostic, Violation};
@@ -41,7 +40,11 @@ impl Violation for DocLineTooLong {
 }
 
 /// W505
-pub fn doc_line_too_long(lineno: usize, line: &str, settings: &Settings) -> Option<Diagnostic> {
+pub fn doc_line_too_long(
+    line_range: TextRange,
+    line: &str,
+    settings: &Settings,
+) -> Option<Diagnostic> {
     let Some(limit) = settings.pycodestyle.max_doc_length else {
         return None;
     };
@@ -56,10 +59,7 @@ pub fn doc_line_too_long(lineno: usize, line: &str, settings: &Settings) -> Opti
     ) {
         Some(Diagnostic::new(
             DocLineTooLong(line_width, limit),
-            TextRange::new(
-                Location::new(lineno + 1, limit),
-                Location::new(lineno + 1, line.chars().count()),
-            ),
+            line_range,
         ))
     } else {
         None

@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use log::error;
 use num_bigint::{BigInt, Sign};
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser::ast::{Cmpop, Constant, Expr, ExprKind, Located, Location, Stmt};
 use rustpython_parser::{lexer, Mode, Tok};
 
@@ -55,30 +55,27 @@ impl BlockMetadata {
 fn metadata<T>(locator: &Locator, located: &Located<T>) -> Option<BlockMetadata> {
     indentation(locator, located)?;
 
+    let line_start = locator.line_start(located.start());
     // Start the selection at the start-of-line. This ensures consistent indentation
     // in the token stream, in the event that the entire block is indented.
-    let text = locator.slice(TextRange::new(
-        Location::new(located.start().row(), 0),
-        located.end(),
-    ));
+    let text = locator.slice(TextRange::new(line_start, located.end()));
 
     let mut starter: Option<Tok> = None;
     let mut elif = None;
     let mut else_ = None;
 
-    for (start, tok, _) in
-        lexer::lex_located(text, Mode::Module, Location::new(located.start().row(), 0))
-            .flatten()
-            .filter(|(_, tok, _)| {
-                !matches!(
-                    tok,
-                    Tok::Indent
-                        | Tok::Dedent
-                        | Tok::NonLogicalNewline
-                        | Tok::Newline
-                        | Tok::Comment(..)
-                )
-            })
+    for (start, tok, _) in lexer::lex_located(text, Mode::Module, line_start)
+        .flatten()
+        .filter(|(_, tok, _)| {
+            !matches!(
+                tok,
+                Tok::Indent
+                    | Tok::Dedent
+                    | Tok::NonLogicalNewline
+                    | Tok::Newline
+                    | Tok::Comment(..)
+            )
+        })
     {
         if starter.is_none() {
             starter = Some(tok.clone());
@@ -199,7 +196,7 @@ fn fix_py2_block(
             Some(Edit::replacement(
                 checker
                     .locator
-                    .slice(TextRangeRange::new(start.start(), end.end()))
+                    .slice(TextRange::new(start.start(), end.end()))
                     .to_string(),
                 stmt.start(),
                 stmt.end(),
@@ -208,7 +205,7 @@ fn fix_py2_block(
             indentation(checker.locator, stmt)
                 .and_then(|indentation| {
                     adjust_indentation(
-                        TextRange::new(Location::new(start.start().row(), 0), end.end()),
+                        TextRange::new(checker.locator.line_start(start.start()), end.end()),
                         indentation,
                         checker.locator,
                         checker.stylist,
@@ -216,16 +213,18 @@ fn fix_py2_block(
                     .ok()
                 })
                 .map(|contents| {
-                    Edit::replacement(contents, Location::new(stmt.start().row(), 0), stmt.end())
+                    Edit::replacement(
+                        contents,
+                        checker.locator.line_start(start.start()),
+                        stmt.end(),
+                    )
                 })
         }
     } else {
         let mut end_location = orelse.last().unwrap().start();
         if block.starter == Tok::If && block.elif.is_some() {
             // Turn the `elif` into an `if`.
-            end_location = block.elif.unwrap();
-            end_location.go_right();
-            end_location.go_right();
+            end_location = block.elif.unwrap() + TextSize::from(2);
         } else if block.starter == Tok::Elif {
             if let Some(elif) = block.elif {
                 end_location = elif;
@@ -268,7 +267,7 @@ fn fix_py3_block(
                 indentation(checker.locator, stmt)
                     .and_then(|indentation| {
                         adjust_indentation(
-                            TextRange::new(Location::new(start.start().row(), 0), end.end()),
+                            TextRange::new(checker.locator.line_start(start.start()), end.end()),
                             indentation,
                             checker.locator,
                             checker.stylist,
@@ -278,7 +277,7 @@ fn fix_py3_block(
                     .map(|contents| {
                         Edit::replacement(
                             contents,
-                            Location::new(stmt.start().row(), 0),
+                            checker.locator.line_start(stmt.start()),
                             stmt.end(),
                         )
                     })

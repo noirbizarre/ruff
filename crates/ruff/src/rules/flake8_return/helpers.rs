@@ -1,6 +1,6 @@
+use ruff_text_size::TextLen;
 use rustpython_parser::ast::{Constant, Expr, ExprKind, Location, Stmt};
 
-use ruff_python_ast::helpers::to_absolute;
 use ruff_python_ast::newlines::StrExt;
 use ruff_python_ast::source_code::Locator;
 
@@ -32,16 +32,19 @@ pub fn end_of_last_statement(stmt: &Stmt, locator: &Locator) -> Location {
     let contents = locator.after(stmt.end());
 
     // End-of-file, so just return the end of the statement.
-    if contents.is_empty() {
+    if contents.trim().is_empty() {
         return stmt.end();
     }
 
     // Otherwise, find the end of the last line that's "part of" the statement.
-    for (lineno, line) in contents.universal_newlines().enumerate() {
+    let mut offset = stmt.end();
+    for line in contents.universal_newlines() {
+        offset += line.text_len();
         if line.ends_with('\\') {
             continue;
         }
-        return to_absolute(Location::new(lineno + 1, line.chars().count()), stmt.end());
+
+        return offset;
     }
 
     unreachable!("Expected to find end-of-statement")

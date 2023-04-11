@@ -100,7 +100,7 @@ fn cmp_fix(rule1: Rule, rule2: Rule, fix1: &Fix, fix2: &Fix) -> std::cmp::Orderi
 
 #[cfg(test)]
 mod tests {
-    use rustpython_parser::ast::Location;
+    use ruff_text_size::TextSize;
 
     use ruff_diagnostics::Diagnostic;
     use ruff_diagnostics::Edit;
@@ -141,8 +141,8 @@ class A(object):
         );
         let diagnostics = create_diagnostics([Edit::replacement(
             "Bar".to_string(),
-            Location::new(1, 8),
-            Location::new(1, 14),
+            TextSize::from_u32(8),
+            TextSize::from_u32(14),
         )]);
         let (contents, fixed) = apply_fixes(diagnostics.iter(), &locator);
         assert_eq!(
@@ -165,8 +165,10 @@ class A(object):
 "#
             .trim(),
         );
-        let diagnostics =
-            create_diagnostics([Edit::deletion(Location::new(1, 7), Location::new(1, 15))]);
+        let diagnostics = create_diagnostics([Edit::deletion(
+            TextSize::from_u32(7),
+            TextSize::from_u32(15),
+        )]);
         let (contents, fixed) = apply_fixes(diagnostics.iter(), &locator);
         assert_eq!(
             contents,
@@ -189,8 +191,8 @@ class A(object, object, object):
             .trim(),
         );
         let diagnostics = create_diagnostics([
-            Edit::deletion(Location::new(1, 8), Location::new(1, 16)),
-            Edit::deletion(Location::new(1, 22), Location::new(1, 30)),
+            Edit::deletion(TextSize::from(8), TextSize::from(16)),
+            Edit::deletion(TextSize::from(22), TextSize::from(30)),
         ]);
         let (contents, fixed) = apply_fixes(diagnostics.iter(), &locator);
 
@@ -215,12 +217,8 @@ class A(object):
             .trim(),
         );
         let diagnostics = create_diagnostics([
-            Edit::deletion(Location::new(1, 7), Location::new(1, 15)),
-            Edit::replacement(
-                "ignored".to_string(),
-                Location::new(1, 9),
-                Location::new(1, 11),
-            ),
+            Edit::deletion(TextSize::from(7), TextSize::from(15)),
+            Edit::replacement("ignored".to_string(), TextSize::from(9), TextSize::from(11)),
         ]);
         let (contents, fixed) = apply_fixes(diagnostics.iter(), &locator);
         assert_eq!(

@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 use rustpython_common::format::{
     FieldName, FieldNamePart, FieldType, FormatPart, FormatString, FromTemplate,
 };
-use rustpython_parser::ast::{Constant, Expr, ExprKind, KeywordData, Location};
+use rustpython_parser::ast::{Constant, Expr, ExprKind, KeywordData};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
@@ -241,7 +241,7 @@ pub(crate) fn f_strings(checker: &mut Checker, summary: &FormatSummary, expr: &E
     }
 
     // Avoid refactoring multi-line strings.
-    if expr.start().row() != expr.end().row() {
+    if checker.locator.contains_line_break(expr.range()) {
         return;
     }
 
@@ -259,14 +259,9 @@ pub(crate) fn f_strings(checker: &mut Checker, summary: &FormatSummary, expr: &E
 
     // If necessary, add a space between any leading keyword (`return`, `yield`, `assert`, etc.)
     // and the string. For example, `return"foo"` is valid, but `returnf"foo"` is not.
-    if expr.start().column() > 0 {
-        let existing = checker.locator.slice(TextRange::new(
-            Location::new(expr.start().row(), expr.start().column() - 1),
-            expr.end(),
-        ));
-        if existing.chars().next().unwrap().is_ascii_alphabetic() {
-            contents.insert(0, ' ');
-        }
+    let existing = checker.locator.slice(TextRange::up_to(expr.start()));
+    if existing.chars().last().unwrap().is_ascii_alphabetic() {
+        contents.insert(0, ' ');
     }
 
     let mut diagnostic = Diagnostic::new(FString, expr.range());

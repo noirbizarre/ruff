@@ -1,3 +1,4 @@
+use ruff_text_size::TextLen;
 use strum::IntoEnumIterator;
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
@@ -66,12 +67,7 @@ pub fn ends_with_punctuation(checker: &mut Checker, docstring: &Docstring) {
             {
                 if let Some((row, column)) = if index == 0 {
                     leading_quote(contents).map(|pattern| {
-                        (
-                            docstring.expr.start().row(),
-                            docstring.expr.start().column()
-                                + pattern.len()
-                                + trimmed.chars().count(),
-                        )
+                        docstring.expr.start() + pattern.text_len() + trimmed.text_len()
                     })
                 } else {
                     Some((

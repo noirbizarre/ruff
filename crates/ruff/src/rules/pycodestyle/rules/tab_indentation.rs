@@ -1,5 +1,4 @@
-use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
+use ruff_text_size::{TextLen, TextRange};
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
@@ -16,7 +15,11 @@ impl Violation for TabIndentation {
 }
 
 /// W191
-pub fn tab_indentation(lineno: usize, line: &str, string_ranges: &[Range]) -> Option<Diagnostic> {
+pub fn tab_indentation(
+    line_range: TextRange,
+    line: &str,
+    string_ranges: &[TextRange],
+) -> Option<Diagnostic> {
     let indent = leading_space(line);
     if let Some(tab_index) = indent.find('\t') {
         // If the tab character is within a multi-line string, abort.
@@ -55,10 +58,7 @@ pub fn tab_indentation(lineno: usize, line: &str, string_ranges: &[Range]) -> Op
 
         Some(Diagnostic::new(
             TabIndentation,
-            TextRange::new(
-                Location::new(lineno, 0),
-                Location::new(lineno, indent.chars().count()),
-            ),
+            TextRange::at(line_range.start(), indent.text_len()),
         ))
     } else {
         None

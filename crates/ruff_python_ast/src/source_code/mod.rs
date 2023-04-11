@@ -11,6 +11,8 @@ pub use locator::Locator;
 use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser as parser;
 use rustpython_parser::{lexer, Mode, ParseError};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 
 use std::sync::Arc;
@@ -45,6 +47,10 @@ impl<'src, 'index> SourceCode<'src, 'index> {
     /// Computes the one indexed row and column numbers for `offset`.
     pub fn source_location(&self, offset: TextSize) -> SourceLocation {
         self.index.source_location(offset, self.text)
+    }
+
+    pub fn line_index(&self, offset: TextSize) -> OneIndexed {
+        self.index.line_index(offset)
     }
 
     // TODO inline
@@ -141,6 +147,10 @@ impl SourceFileBuilder {
         });
     }
 
+    pub fn set_source_text(&mut self, text: &str) {
+        self.set_source_code(&SourceCode::new(text, &LineIndex::from_source_text(text)))
+    }
+
     /// Consumes `self` and returns a builder for a file with the source text `text`. Builds the [`LineIndex`] from `text`.
     #[must_use]
     pub fn source_text(self, text: &str) -> Self {
@@ -164,10 +174,11 @@ impl SourceFileBuilder {
 
     /// Consumes `self` and returns the [`SourceFile`].
     pub fn finish(self) -> SourceFile {
+        // FIXME avoid unwrap
         SourceFile {
             inner: Arc::new(SourceFileInner {
                 name: self.name,
-                code: self.code,
+                code: self.code.unwrap(),
             }),
         }
     }
@@ -199,24 +210,25 @@ impl SourceFile {
 
     /// Returns `Some` with the source code if set, or `None`.
     #[inline]
-    pub fn source_code(&self) -> Option<SourceCode> {
-        self.inner.code.as_ref().map(|code| SourceCode {
+    pub fn source_code(&self) -> SourceCode {
+        let code = &self.inner.code;
+        SourceCode {
             text: &code.text,
             index: &code.index,
-        })
+        }
     }
 
     /// Returns `Some` with the source text if set, or `None`.
     #[inline]
-    pub fn source_text(&self) -> Option<&str> {
-        self.inner.code.as_ref().map(|code| &*code.text)
+    pub fn source_text(&self) -> &str {
+        self.source_code().text()
     }
 }
 
 #[derive(Eq, PartialEq)]
 struct SourceFileInner {
     name: Box<str>,
-    code: Option<FileSourceCode>,
+    code: FileSourceCode,
 }
 
 struct FileSourceCode {
@@ -234,6 +246,7 @@ impl PartialEq for FileSourceCode {
 impl Eq for FileSourceCode {}
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SourceLocation {
     pub row: OneIndexed,
     pub column: OneIndexed,

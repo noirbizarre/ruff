@@ -1,23 +1,24 @@
 //! Struct used to index source code, to enable efficient lookup of tokens that
 //! are omitted from the AST (e.g., commented lines).
 
+use crate::source_code::Locator;
+use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser::ast::Location;
 use rustpython_parser::lexer::LexResult;
 use rustpython_parser::Tok;
 
-use crate::types::Range;
-
 pub struct Indexer {
-    commented_lines: Vec<usize>,
-    // FIXME rewrite to store text ranges
-    continuation_lines: Vec<usize>,
-    string_ranges: Vec<Range>,
+    /// Stores the ranges of comments sorted by their range in increasing order.
+    comments: Vec<TextRange>,
+    /// Stores the start offset of continuation lines.
+    continuation_lines: Vec<TextSize>,
+    string_ranges: Vec<TextRange>,
 }
 
 impl Indexer {
     /// Return a slice of all lines that include a comment.
     pub fn commented_lines(&self) -> &[usize] {
-        &self.commented_lines
+        &self.comments
     }
 
     /// Return a slice of all lines that end with a continuation (backslash).
@@ -26,74 +27,103 @@ impl Indexer {
     }
 
     /// Return a slice of all ranges that include a triple-quoted string.
-    pub fn string_ranges(&self) -> &[Range] {
+    pub fn string_ranges(&self) -> &[TextRange] {
         &self.string_ranges
     }
 }
 
-impl From<&[LexResult]> for Indexer {
-    fn from(lxr: &[LexResult]) -> Self {
+impl Indexer {
+    fn from_tokens(tokens: &[LexResult], locator: &Locator) -> Self {
         let mut commented_lines = Vec::new();
         let mut continuation_lines = Vec::new();
         let mut string_ranges = Vec::new();
-        let mut prev: Option<(&Location, &Tok, &Location)> = None;
-        for (start, tok, end) in lxr.iter().flatten() {
+        // Token, end
+        let mut prev_end = TextSize::default();
+        let mut prev_token: Option<&Tok> = None;
+        let mut line_start = TextSize::default();
+
+        for (start, tok, end) in tokens.iter().flatten() {
+            let trivia = &locator.contents()[TextRange::new(prev_end, *start)];
+
+            for (index, text) in trivia.match_indices(['\n', '\r']) {
+                if text == "\r" && trivia.as_bytes().get(index + 1) == Some(&b'\n') {
+                    continue;
+                }
+
+                if let Some(prev_token) = prev_token {
+                    if !matches!(
+                        prev_token,
+                        Tok::Newline | Tok::NonLogicalNewline | Tok::Comment(..),
+                    ) {
+                        continuation_lines.push(line_start);
+                    }
+                }
+
+                line_start = prev_end + TextSize::try_from(index + 1).unwrap();
+            }
+
             match tok {
-                Tok::Comment(..) => commented_lines.push(start.row()),
+                Tok::Comment(..) => {
+                    commented_lines.push(TextRange::new(*start, *end));
+                }
+                Tok::Newline | Tok::NonLogicalNewline => {
+                    line_start = *end;
+                }
                 Tok::String {
                     triple_quoted: true,
                     ..
-                } => string_ranges.push(Range::new(*start, *end)),
-                _ => (),
+                } => string_ranges.push(TextRange::new(*start, *end)),
+                _ => {}
             }
 
-            if let Some((.., prev_tok, prev_end)) = prev {
-                if !matches!(
-                    prev_tok,
-                    Tok::Newline | Tok::NonLogicalNewline | Tok::Comment(..)
-                ) {
-                    for line in prev_end.row()..start.row() {
-                        continuation_lines.push(line);
-                    }
-                }
-            }
-            prev = Some((start, tok, end));
+            prev_token = Some(tok);
+            prev_end = *end;
         }
         Self {
-            commented_lines,
+            comments: commented_lines,
             continuation_lines,
             string_ranges,
         }
+    }
+
+    /// Returns the byte offset ranges of comments
+    pub fn comment_ranges(&self) -> &[TextRange] {
+        &self.comments
+    }
+
+    /// Returns the line start positions of continuations.
+    pub fn continuation_line_starts(&self) -> &[TextSize] {
+        &self.continuation_lines
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use rustpython_parser::ast::Location;
+    use ruff_text_size::TextSize;
     use rustpython_parser::lexer::LexResult;
     use rustpython_parser::{lexer, Mode};
 
-    use crate::source_code::Indexer;
-    use crate::types::Range;
+    use crate::source_code::{Indexer, Locator};
 
     #[test]
     fn continuation() {
         let contents = r#"x = 1"#;
         let lxr: Vec<LexResult> = lexer::lex(contents, Mode::Module).collect();
-        let indexer: Indexer = lxr.as_slice().into();
-        assert_eq!(indexer.continuation_lines(), Vec::<usize>::new().as_slice());
+        let indexer = Indexer::from_tokens(&lxr, &Locator::new(contents));
+        assert_eq!(indexer.continuation_line_starts(), &[]);
 
         let contents = r#"
-# Hello, world!
+        # Hello, world!
 
-x = 1
+        x = 1
 
-y = 2
-"#
+        y = 2
+        "#
         .trim();
+
         let lxr: Vec<LexResult> = lexer::lex(contents, Mode::Module).collect();
-        let indexer: Indexer = lxr.as_slice().into();
-        assert_eq!(indexer.continuation_lines(), Vec::<usize>::new().as_slice());
+        let indexer = Indexer::from_tokens(&lxr, &Locator::new(contents));
+        assert_eq!(indexer.continuation_line_starts(), &[]);
 
         let contents = r#"
 x = \
@@ -112,8 +142,20 @@ if True:
 "#
         .trim();
         let lxr: Vec<LexResult> = lexer::lex(contents, Mode::Module).collect();
-        let indexer: Indexer = lxr.as_slice().into();
-        assert_eq!(indexer.continuation_lines(), [1, 5, 6, 11]);
+        let indexer = Indexer::from_tokens(&lxr.as_slice(), &Locator::new(contents));
+        assert_eq!(
+            indexer.continuation_line_starts(),
+            [
+                // row 1
+                TextSize::from(0),
+                // row 5
+                TextSize::from(22),
+                // row 6
+                TextSize::from(32),
+                // row 11
+                TextSize::from(71),
+            ]
+        );
 
         let contents = r#"
 x = 1; import sys
@@ -132,8 +174,16 @@ import os
 "#
         .trim();
         let lxr: Vec<LexResult> = lexer::lex(contents, Mode::Module).collect();
-        let indexer: Indexer = lxr.as_slice().into();
-        assert_eq!(indexer.continuation_lines(), [9, 12]);
+        let indexer = Indexer::from_tokens(&lxr.as_slice(), &Locator::new(contents));
+        assert_eq!(
+            indexer.continuation_line_starts(),
+            [
+                // row 9
+                TextSize::from(84),
+                // row 12
+                TextSize::from(116)
+            ]
+        );
     }
 
     #[test]

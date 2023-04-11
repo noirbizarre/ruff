@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextRange, TextSize};
 use std::path::Path;
 
 use rustpython_parser::ast::Location;
@@ -27,17 +27,14 @@ impl Violation for ShebangNotExecutable {
 #[cfg(target_family = "unix")]
 pub fn shebang_not_executable(
     filepath: &Path,
-    lineno: usize,
+    range: TextRange,
     shebang: &ShebangDirective,
 ) -> Option<Diagnostic> {
     if let ShebangDirective::Match(_, start, end, _) = shebang {
         if let Ok(false) = is_executable(filepath) {
             let diagnostic = Diagnostic::new(
                 ShebangNotExecutable,
-                TextRange::new(
-                    Location::new(lineno + 1, *start),
-                    Location::new(lineno + 1, *end),
-                ),
+                TextRange::new(range.start() + start, range.start() + end),
             );
             return Some(diagnostic);
         }

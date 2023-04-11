@@ -1,6 +1,7 @@
 use ruff_text_size::TextRange;
 use rustc_hash::FxHashMap;
 use rustpython_parser::ast::Location;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 /// A representation of an individual name imported via any import statement.
@@ -101,7 +102,8 @@ impl FutureImport for AnyImport<'_> {
 }
 
 /// A representation of a module reference in an import statement.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ModuleImport {
     module: String,
     location: Location,
@@ -125,7 +127,8 @@ impl From<&ModuleImport> for TextRange {
 }
 
 /// A representation of the import dependencies between modules.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ImportMap {
     /// A map from dot-delimited module name to the list of imports in that module.
     module_to_imports: FxHashMap<String, Vec<ModuleImport>>,

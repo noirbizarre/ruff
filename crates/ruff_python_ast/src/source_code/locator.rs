@@ -40,6 +40,11 @@ impl<'a> Locator<'a> {
         }
     }
 
+    pub fn is_at_start_of_line(&self, offset: TextSize) -> bool {
+        offset == TextSize::from(0)
+            || self.contents[TextRange::up_to(offset)].ends_with(['\n', '\r'])
+    }
+
     /// Computes the offset that is right after the newline character that ends `offset`'s line.
     ///
     /// ## Examples

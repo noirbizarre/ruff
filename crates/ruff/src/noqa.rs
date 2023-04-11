@@ -153,11 +153,11 @@ pub enum FileExemption {
 
 /// Extract the [`FileExemption`] for a given Python source file, enumerating any rules that are
 /// globally ignored within the file.
-pub fn file_exemption(lines: &[&str], commented_lines: &[usize]) -> FileExemption {
+pub fn file_exemption(contents: &str, comment_ranges: &[TextRange]) -> FileExemption {
     let mut exempt_codes: Vec<NoqaCode> = vec![];
 
-    for lineno in commented_lines {
-        match parse_file_exemption(lines[lineno - 1]) {
+    for range in comment_ranges {
+        match parse_file_exemption(&contents[range]) {
             ParsedExemption::All => {
                 return FileExemption::All;
             }

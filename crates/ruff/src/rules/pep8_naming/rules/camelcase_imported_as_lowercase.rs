@@ -49,7 +49,7 @@ pub fn camelcase_imported_as_lowercase(
     alias: &Alias,
     stmt: &Stmt,
 ) -> Option<Diagnostic> {
-    if helpers::is_camelcase(name) && str::is_lower(asname) {
+    if helpers::is_camelcase(name) && ruff_python_stdlib::str::is_lower(asname) {
         let mut diagnostic = Diagnostic::new(
             CamelcaseImportedAsLowercase {
                 name: name.to_string(),

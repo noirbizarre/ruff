@@ -1,14 +1,15 @@
 use std::path::Path;
 
 use itertools::{EitherOrBoth, Itertools};
-use ruff_text_size::TextRange;
-use rustpython_parser::ast::{Location, Stmt};
+use ruff_text_size::{TextRange, TextSize};
+use rustpython_parser::ast::Stmt;
 use textwrap::indent;
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::helpers::{
-    count_trailing_lines, followed_by_multi_statement_line, preceded_by_multi_statement_line,
+    count_trailing_lines_text_len, followed_by_multi_statement_line,
+    preceded_by_multi_statement_line,
 };
 use ruff_python_ast::source_code::{Indexer, Locator, Stylist};
 use ruff_python_ast::whitespace::leading_space;
@@ -57,9 +58,10 @@ fn extract_range(body: &[&Stmt]) -> TextRange {
     TextRange::new(location, end_location)
 }
 
-fn extract_indentation_range(body: &[&Stmt]) -> TextRange {
+fn extract_indentation_range(body: &[&Stmt], locator: &Locator) -> TextRange {
     let location = body.first().unwrap().start();
-    TextRange::new(Location::new(location.row(), 0), location)
+
+    TextRange::new(locator.line_start(location), location)
 }
 
 /// Compares two strings, returning true if they are equal modulo whitespace
@@ -84,7 +86,7 @@ pub fn organize_imports(
     autofix: flags::Autofix,
     package: Option<&Path>,
 ) -> Option<Diagnostic> {
-    let indentation = locator.slice(extract_indentation_range(&block.imports));
+    let indentation = locator.slice(extract_indentation_range(&block.imports, locator));
     let indentation = leading_space(indentation);
 
     let range = extract_range(&block.imports);
@@ -99,14 +101,14 @@ pub fn organize_imports(
 
     // Extract comments. Take care to grab any inline comments from the last line.
     let comments = comments::collect_comments(
-        TextRange::new(range.start(), Location::new(range.end().row() + 1, 0)),
+        TextRange::new(range.start(), locator.line_end(range.end())),
         locator,
     );
 
-    let num_trailing_lines = if block.trailer.is_none() {
-        0
+    let trailing_line_len = if block.trailer.is_none() {
+        TextSize::default()
     } else {
-        count_trailing_lines(block.imports.last().unwrap(), locator)
+        count_trailing_lines_text_len(block.imports.last().unwrap(), locator)
     };
 
     // Generate the sorted import block.
@@ -141,8 +143,8 @@ pub fn organize_imports(
 
     // Expand the span the entire range, including leading and trailing space.
     let range = TextRange::new(
-        Location::new(range.start().row(), 0),
-        Location::new(range.end().row() + 1 + num_trailing_lines, 0),
+        locator.line_start(range.start()),
+        locator.line_end(range.end()) + trailing_line_len,
     );
     let actual = locator.slice(range);
     if matches_ignoring_indentation(actual, &expected) {

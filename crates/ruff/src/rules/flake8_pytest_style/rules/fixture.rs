@@ -475,9 +475,8 @@ fn check_fixture_marks(checker: &mut Checker, decorators: &[Expr]) {
                 let mut diagnostic =
                     Diagnostic::new(PytestUnnecessaryAsyncioMarkOnFixture, expr.range());
                 if checker.patch(diagnostic.kind.rule()) {
-                    let start = Location::new(expr.start().row(), 0);
-                    let end = Location::new(expr.end().row() + 1, 0);
-                    diagnostic.set_fix(Edit::deletion(start, end));
+                    let range = checker.locator.lines_range(expr.range());
+                    diagnostic.set_fix(Edit::deletion(range.start(), range.end()));
                 }
                 checker.diagnostics.push(diagnostic);
             }
@@ -492,9 +491,8 @@ fn check_fixture_marks(checker: &mut Checker, decorators: &[Expr]) {
                 let mut diagnostic =
                     Diagnostic::new(PytestErroneousUseFixturesOnFixture, expr.range());
                 if checker.patch(diagnostic.kind.rule()) {
-                    let start = Location::new(expr.start().row(), 0);
-                    let end = Location::new(expr.end().row() + 1, 0);
-                    diagnostic.set_fix(Edit::deletion(start, end));
+                    let line_range = checker.locator.lines_range(expr.range());
+                    diagnostic.set_fix(Edit::deletion(line_range.start(), line_range.end()));
                 }
                 checker.diagnostics.push(diagnostic);
             }

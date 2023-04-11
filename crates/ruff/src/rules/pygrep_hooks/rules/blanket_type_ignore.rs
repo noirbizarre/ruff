@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextLen, TextRange, TextSize};
 use rustpython_parser::ast::Location;
 
 use ruff_diagnostics::{Diagnostic, Violation};
@@ -18,7 +18,7 @@ impl Violation for BlanketTypeIgnore {
 }
 
 /// PGH003
-pub fn blanket_type_ignore(diagnostics: &mut Vec<Diagnostic>, lineno: usize, line: &str) {
+pub fn blanket_type_ignore(diagnostics: &mut Vec<Diagnostic>, line_range: TextRange, line: &str) {
     for match_ in TYPE_IGNORE_PATTERN.find_iter(line) {
         if let Ok(codes) = parse_type_ignore_tag(line[match_.end()..].trim()) {
             if codes.is_empty() {
@@ -26,9 +26,9 @@ pub fn blanket_type_ignore(diagnostics: &mut Vec<Diagnostic>, lineno: usize, lin
                 let end = start + line[match_.start()..match_.end()].chars().count();
                 diagnostics.push(Diagnostic::new(
                     BlanketTypeIgnore,
-                    TextRange::new(
-                        Location::new(lineno + 1, start),
-                        Location::new(lineno + 1, end),
+                    TextRange::at(
+                        line_range.start() + match_.start(),
+                        match_.as_str().text_len(),
                     ),
                 ));
             }

@@ -1,5 +1,4 @@
-use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
+use ruff_text_size::{TextRange, TextSize};
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
@@ -17,7 +16,7 @@ impl Violation for ShebangMissingPython {
 }
 
 /// EXE003
-pub fn shebang_python(lineno: usize, shebang: &ShebangDirective) -> Option<Diagnostic> {
+pub fn shebang_python(range: TextRange, shebang: &ShebangDirective) -> Option<Diagnostic> {
     if let ShebangDirective::Match(_, start, end, content) = shebang {
         if content.contains("python") || content.contains("pytest") {
             None
@@ -25,8 +24,8 @@ pub fn shebang_python(lineno: usize, shebang: &ShebangDirective) -> Option<Diagn
             let diagnostic = Diagnostic::new(
                 ShebangMissingPython,
                 TextRange::new(
-                    Location::new(lineno + 1, start - 2),
-                    Location::new(lineno + 1, *end),
+                    range.start() + start - TextSize::from(2),
+                    range.start() + end,
                 ),
             );
 

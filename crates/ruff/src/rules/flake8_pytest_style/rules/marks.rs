@@ -1,4 +1,5 @@
-use rustpython_parser::ast::{Expr, ExprKind, Location};
+use ruff_text_size::TextSize;
+use rustpython_parser::ast::{Expr, ExprKind};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
@@ -112,7 +113,7 @@ fn check_useless_usefixtures(checker: &mut Checker, decorator: &Expr, call_path:
     if !has_parameters {
         let mut diagnostic = Diagnostic::new(PytestUseFixturesWithoutParameters, decorator.range());
         if checker.patch(diagnostic.kind.rule()) {
-            let at_start = Location::new(decorator.start().row(), decorator.start().column() - 1);
+            let at_start = decorator.start() - TextSize::from(1);
             diagnostic.set_fix(Edit::deletion(at_start, decorator.end()));
         }
         checker.diagnostics.push(diagnostic);

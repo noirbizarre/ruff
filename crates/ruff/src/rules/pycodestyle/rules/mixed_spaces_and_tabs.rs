@@ -1,5 +1,4 @@
 use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
@@ -36,17 +35,11 @@ impl Violation for MixedSpacesAndTabs {
 }
 
 /// E101
-pub fn mixed_spaces_and_tabs(lineno: usize, line: &str) -> Option<Diagnostic> {
+pub fn mixed_spaces_and_tabs(line_range: TextRange, line: &str) -> Option<Diagnostic> {
     let indent = leading_space(line);
 
     if indent.contains(' ') && indent.contains('\t') {
-        Some(Diagnostic::new(
-            MixedSpacesAndTabs,
-            TextRange::new(
-                Location::new(lineno + 1, 0),
-                Location::new(lineno + 1, indent.chars().count()),
-            ),
-        ))
+        Some(Diagnostic::new(MixedSpacesAndTabs, line_range))
     } else {
         None
     }

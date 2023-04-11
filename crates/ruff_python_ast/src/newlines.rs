@@ -50,16 +50,18 @@ impl<'a> Iterator for UniversalNewlineIterator<'a> {
         let line = match self.text.find(['\n', '\r']) {
             // Non-last line
             Some(line_end) => {
-                let (line, remainder) = self.text.split_at(line_end);
-
-                self.text = match remainder.as_bytes()[0] {
+                let offset: usize = match self.text.as_bytes()[line_end] {
                     // Explicit branch for `\n` as this is the most likely path
-                    b'\n' => &remainder[1..],
+                    b'\n' => 1,
                     // '\r\n'
-                    b'\r' if remainder.as_bytes().get(1) == Some(&b'\n') => &remainder[2..],
+                    b'\r' if self.text.as_bytes().get(line_end + 11) == Some(&b'\n') => 2,
                     // '\r'
-                    _ => &remainder[1..],
+                    _ => 1,
                 };
+
+                let (line, remainder) = self.text.split_at(line_end + offset);
+
+                self.text = remainder;
 
                 line
             }
@@ -81,15 +83,6 @@ impl DoubleEndedIterator for UniversalNewlineIterator<'_> {
         if self.text.is_empty() {
             return None;
         }
-
-        let len = self.text.len();
-
-        // Trim any trailing newlines.
-        self.text = match self.text.as_bytes()[len - 1] {
-            b'\n' if len > 1 && self.text.as_bytes()[len - 2] == b'\r' => &self.text[..len - 2],
-            b'\n' | b'\r' => &self.text[..len - 1],
-            _ => self.text,
-        };
 
         // Find the end of the previous line. The previous line is the text up to, but not including
         // the newline character.
@@ -155,13 +148,16 @@ mod tests {
     #[test]
     fn universal_newlines_forward() {
         let lines: Vec<_> = UniversalNewlineIterator::from("foo\nbar\n\r\nbaz\rbop").collect();
-        assert_eq!(lines, vec!["foo", "bar", "", "baz", "bop"]);
+        assert_eq!(lines, vec!["foo\n", "bar\n", "\r\n", "baz\r", "bop"]);
 
         let lines: Vec<_> = UniversalNewlineIterator::from("foo\nbar\n\r\nbaz\rbop\n").collect();
-        assert_eq!(lines, vec!["foo", "bar", "", "baz", "bop"]);
+        assert_eq!(lines, vec!["foo\n", "bar\n", "\r\n", "baz\r", "bop\n"]);
 
         let lines: Vec<_> = UniversalNewlineIterator::from("foo\nbar\n\r\nbaz\rbop\n\n").collect();
-        assert_eq!(lines, vec!["foo", "bar", "", "baz", "bop", ""]);
+        assert_eq!(
+            lines,
+            vec!["foo\n", "bar\n", "\r\n", "baz\r", "bop\n", "\n"]
+        );
     }
 
     #[test]
@@ -169,13 +165,13 @@ mod tests {
         let lines: Vec<_> = UniversalNewlineIterator::from("foo\nbar\n\r\nbaz\rbop")
             .rev()
             .collect();
-        assert_eq!(lines, vec!["bop", "baz", "", "bar", "foo"]);
+        assert_eq!(lines, vec!["bop", "baz\r", "\r\n", "bar\n", "foo\n"]);
 
         let lines: Vec<_> = UniversalNewlineIterator::from("foo\nbar\n\nbaz\rbop\n")
             .rev()
             .collect();
 
-        assert_eq!(lines, vec!["bop", "baz", "", "bar", "foo"]);
+        assert_eq!(lines, vec!["bop\n", "baz\r", "\n", "bar\n", "foo\n"]);
     }
 
     #[test]
@@ -183,10 +179,10 @@ mod tests {
         let mut lines = UniversalNewlineIterator::from("foo\nbar\n\r\nbaz\rbop");
 
         assert_eq!(lines.next_back(), Some("bop"));
-        assert_eq!(lines.next(), Some("foo"));
-        assert_eq!(lines.next_back(), Some("baz"));
-        assert_eq!(lines.next(), Some("bar"));
-        assert_eq!(lines.next_back(), Some(""));
+        assert_eq!(lines.next(), Some("foo\n"));
+        assert_eq!(lines.next_back(), Some("baz\r"));
+        assert_eq!(lines.next(), Some("bar\n"));
+        assert_eq!(lines.next_back(), Some("\r\n"));
         assert_eq!(lines.next(), None);
     }
 }

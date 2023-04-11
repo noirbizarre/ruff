@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser::ast::{Constant, Expr, ExprKind, Location, Stmt, StmtKind};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Violation};
@@ -6,6 +7,7 @@ use ruff_diagnostics::{Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::helpers::elif_else_range;
 use ruff_python_ast::helpers::is_const_none;
+use ruff_python_ast::source_code::Locator;
 use ruff_python_ast::visitor::Visitor;
 use ruff_python_ast::whitespace::indentation;
 
@@ -317,16 +319,20 @@ fn has_multiple_assigns(id: &str, stack: &Stack) -> bool {
     false
 }
 
-fn has_refs_before_next_assign(id: &str, return_location: Location, stack: &Stack) -> bool {
+fn has_refs_before_next_assign(
+    id: &str,
+    return_location: TextSize,
+    stack: &Stack,
+    locator: &Locator,
+) -> bool {
     let mut before_assign: &Location = &Location::default();
     let mut after_assign: Option<&Location> = None;
     if let Some(assigns) = stack.assigns.get(&id) {
         for location in assigns.iter().sorted() {
-            if location.row() > return_location.row() {
+            if *location > return_location {
                 after_assign = Some(location);
                 break;
-            }
-            if location.row() <= return_location.row() {
+            } else {
                 before_assign = location;
             }
         }
@@ -334,31 +340,41 @@ fn has_refs_before_next_assign(id: &str, return_location: Location, stack: &Stac
 
     if let Some(refs) = stack.refs.get(&id) {
         for location in refs {
-            if location.row() == return_location.row() {
+            if !locator.contains_line_break(TextRange::new(*location, return_location)) {
                 continue;
             }
-            if let Some(after_assign) = after_assign {
-                if before_assign.row() < location.row() && location.row() <= after_assign.row() {
+
+            let location_on_new_row =
+                locator.contains_line_break(TextRange::new(*before_assign, *location));
+
+            if location_on_new_row {
+                if let Some(after_assign) = after_assign {
+                    if location <= after_assign {
+                        return true;
+                    }
+                } else {
                     return true;
                 }
-            } else if before_assign.row() < location.row() {
-                return true;
             }
         }
     }
     false
 }
 
-fn has_refs_or_assigns_within_try_or_loop(id: &str, stack: &Stack) -> bool {
+fn has_refs_or_assigns_within_try_or_loop(id: &str, stack: &Stack, locator: &Locator) -> bool {
     if let Some(refs) = stack.refs.get(&id) {
         for location in refs {
             for (try_location, try_end_location) in &stack.tries {
-                if try_location < location && location <= try_end_location {
+                if locator.contains_line_break(TextRange::new(*try_location, *location))
+                    && location <= try_end_location
+                {
                     return true;
                 }
             }
             for (loop_location, loop_end_location) in &stack.loops {
-                if loop_location < location && location <= loop_end_location {
+                if locator.contains_line_break(TextRange::new(*loop_location, *location))
+                    && location <= loop_end_location
+                {
                     return true;
                 }
             }
@@ -367,12 +383,16 @@ fn has_refs_or_assigns_within_try_or_loop(id: &str, stack: &Stack) -> bool {
     if let Some(refs) = stack.assigns.get(&id) {
         for location in refs {
             for (try_location, try_end_location) in &stack.tries {
-                if try_location < location && location <= try_end_location {
+                if locator.contains_line_break(TextRange::new(*try_location, *location))
+                    && location <= try_end_location
+                {
                     return true;
                 }
             }
             for (loop_location, loop_end_location) in &stack.loops {
-                if loop_location < location && location <= loop_end_location {
+                if locator.contains_line_break(TextRange::new(*loop_location, *location))
+                    && location <= loop_end_location
+                {
                     return true;
                 }
             }
@@ -396,8 +416,8 @@ fn unnecessary_assign(checker: &mut Checker, stack: &Stack, expr: &Expr) {
         }
 
         if has_multiple_assigns(id, stack)
-            || has_refs_before_next_assign(id, expr.start(), stack)
-            || has_refs_or_assigns_within_try_or_loop(id, stack)
+            || has_refs_before_next_assign(id, expr.start(), stack, checker.locator)
+            || has_refs_or_assigns_within_try_or_loop(id, stack, checker.locator)
         {
             return;
         }
