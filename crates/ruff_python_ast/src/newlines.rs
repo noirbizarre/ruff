@@ -22,10 +22,10 @@ impl StrExt for str {
 /// let mut lines = UniversalNewlineIterator::from("foo\nbar\n\r\nbaz\rbop");
 ///
 /// assert_eq!(lines.next_back(), Some("bop"));
-/// assert_eq!(lines.next(), Some("foo"));
-/// assert_eq!(lines.next_back(), Some("baz"));
-/// assert_eq!(lines.next(), Some("bar"));
-/// assert_eq!(lines.next_back(), Some(""));
+/// assert_eq!(lines.next(), Some("foo\n"));
+/// assert_eq!(lines.next_back(), Some("baz\r"));
+/// assert_eq!(lines.next(), Some("bar\n"));
+/// assert_eq!(lines.next_back(), Some("\r\n"));
 /// assert_eq!(lines.next(), None);
 /// ```
 pub struct UniversalNewlineIterator<'a> {
@@ -54,7 +54,7 @@ impl<'a> Iterator for UniversalNewlineIterator<'a> {
                     // Explicit branch for `\n` as this is the most likely path
                     b'\n' => 1,
                     // '\r\n'
-                    b'\r' if self.text.as_bytes().get(line_end + 11) == Some(&b'\n') => 2,
+                    b'\r' if self.text.as_bytes().get(line_end + 1) == Some(&b'\n') => 2,
                     // '\r'
                     _ => 1,
                 };
@@ -84,9 +84,18 @@ impl DoubleEndedIterator for UniversalNewlineIterator<'_> {
             return None;
         }
 
+        let len = self.text.len();
+
+        // Trim any trailing newlines.
+        let haystack = match self.text.as_bytes()[len - 1] {
+            b'\n' if len > 1 && self.text.as_bytes()[len - 2] == b'\r' => &self.text[..len - 2],
+            b'\n' | b'\r' => &self.text[..len - 1],
+            _ => self.text,
+        };
+
         // Find the end of the previous line. The previous line is the text up to, but not including
         // the newline character.
-        let line = match self.text.rfind(['\n', '\r']) {
+        let line = match haystack.rfind(['\n', '\r']) {
             // '\n' or '\r' or '\r\n'
             Some(line_end) => {
                 let (remainder, line) = self.text.split_at(line_end + 1);

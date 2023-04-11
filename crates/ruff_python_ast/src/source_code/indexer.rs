@@ -3,7 +3,6 @@
 
 use crate::source_code::Locator;
 use ruff_text_size::{TextRange, TextSize};
-use rustpython_parser::ast::Location;
 use rustpython_parser::lexer::LexResult;
 use rustpython_parser::Tok;
 
@@ -16,24 +15,7 @@ pub struct Indexer {
 }
 
 impl Indexer {
-    /// Return a slice of all lines that include a comment.
-    pub fn commented_lines(&self) -> &[usize] {
-        &self.comments
-    }
-
-    /// Return a slice of all lines that end with a continuation (backslash).
-    pub fn continuation_lines(&self) -> &[usize] {
-        &self.continuation_lines
-    }
-
-    /// Return a slice of all ranges that include a triple-quoted string.
-    pub fn string_ranges(&self) -> &[TextRange] {
-        &self.string_ranges
-    }
-}
-
-impl Indexer {
-    fn from_tokens(tokens: &[LexResult], locator: &Locator) -> Self {
+    pub fn from_tokens(tokens: &[LexResult], locator: &Locator) -> Self {
         let mut commented_lines = Vec::new();
         let mut continuation_lines = Vec::new();
         let mut string_ranges = Vec::new();
@@ -91,15 +73,20 @@ impl Indexer {
         &self.comments
     }
 
-    /// Returns the line start positions of continuations.
+    /// Returns the line start positions of continuations (backslash).
     pub fn continuation_line_starts(&self) -> &[TextSize] {
         &self.continuation_lines
+    }
+
+    /// Return a slice of all ranges that include a triple-quoted string.
+    pub fn string_ranges(&self) -> &[TextRange] {
+        &self.string_ranges
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ruff_text_size::TextSize;
+    use ruff_text_size::{TextRange, TextSize};
     use rustpython_parser::lexer::LexResult;
     use rustpython_parser::{lexer, Mode};
 
@@ -190,8 +177,8 @@ import os
     fn string_ranges() {
         let contents = r#""this is a single-quoted string""#;
         let lxr: Vec<LexResult> = lexer::lex(contents, Mode::Module).collect();
-        let indexer: Indexer = lxr.as_slice().into();
-        assert_eq!(indexer.string_ranges(), &vec![]);
+        let indexer = Indexer::from_tokens(&lxr.as_slice(), &Locator::new(contents));
+        assert_eq!(indexer.string_ranges(), []);
 
         let contents = r#"
             """
@@ -199,10 +186,10 @@ import os
             """
             "#;
         let lxr: Vec<LexResult> = lexer::lex(contents, Mode::Module).collect();
-        let indexer: Indexer = lxr.as_slice().into();
+        let indexer = Indexer::from_tokens(&lxr.as_slice(), &Locator::new(contents));
         assert_eq!(
             indexer.string_ranges(),
-            &vec![Range::new(Location::new(2, 12), Location::new(4, 15))]
+            [TextRange::new(TextSize::from(13), TextSize::from(71))]
         );
 
         let contents = r#"
@@ -211,10 +198,10 @@ import os
             """
             "#;
         let lxr: Vec<LexResult> = lexer::lex(contents, Mode::Module).collect();
-        let indexer: Indexer = lxr.as_slice().into();
+        let indexer = Indexer::from_tokens(&lxr.as_slice(), &Locator::new(contents));
         assert_eq!(
             indexer.string_ranges(),
-            &vec![Range::new(Location::new(2, 12), Location::new(4, 15))]
+            [TextRange::new(TextSize::from(13), TextSize::from(107))]
         );
 
         let contents = r#"
@@ -228,12 +215,12 @@ import os
             """
             "#;
         let lxr: Vec<LexResult> = lexer::lex(contents, Mode::Module).collect();
-        let indexer: Indexer = lxr.as_slice().into();
+        let indexer = Indexer::from_tokens(&lxr.as_slice(), &Locator::new(contents));
         assert_eq!(
             indexer.string_ranges(),
-            &vec![
-                Range::new(Location::new(2, 12), Location::new(5, 15)),
-                Range::new(Location::new(6, 12), Location::new(9, 15))
+            &[
+                TextRange::new(TextSize::from(13), TextSize::from(85)),
+                TextRange::new(TextSize::from(98), TextSize::from(161))
             ]
         );
     }

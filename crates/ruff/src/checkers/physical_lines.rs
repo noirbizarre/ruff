@@ -56,7 +56,7 @@ pub fn check_physical_lines(
     let fix_shebang_whitespace =
         autofix.into() && settings.rules.should_fix(Rule::ShebangLeadingWhitespace);
 
-    let mut commented_lines_iter = indexer.commented_lines().iter().peekable();
+    let mut commented_lines_iter = indexer.comment_ranges().iter().peekable();
     let mut doc_lines_iter = doc_lines.iter().peekable();
     let string_lines = indexer.string_ranges();
     let mut line_range = TextRange::default();
@@ -64,7 +64,7 @@ pub fn check_physical_lines(
     for (index, line) in locator.contents().universal_newlines().enumerate() {
         line_range = TextRange::new(line_range.end(), line_range.end() + line.text_len());
 
-        while commented_ranges_iter
+        while commented_lines_iter
             .next_if(|comment_range| line_range.contains_range(**comment_range))
             .is_some()
         {
@@ -200,7 +200,7 @@ mod tests {
         let line = "'\u{4e9c}' * 2"; // 7 in UTF-32, 9 in UTF-8.
         let locator = Locator::new(line);
         let tokens: Vec<_> = lex(line, Mode::Module).collect();
-        let indexer: Indexer = tokens.as_slice().into();
+        let indexer = Indexer::from_tokens(&tokens, &locator);
         let stylist = Stylist::from_tokens(&tokens, &locator);
 
         let check_with_max_line_length = |line_length: usize| {

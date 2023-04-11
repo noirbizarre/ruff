@@ -74,7 +74,7 @@ pub fn check_noqa(
         if let Some(parent_lineno) = diagnostic.parent.map(|location| location.row()) {
             if parent_lineno != diagnostic_lineno {
                 let noqa_lineno = noqa_line_for.get(&parent_lineno).unwrap_or(&parent_lineno);
-                if commented_lines.contains(noqa_lineno) {
+                if comment_ranges.contains(noqa_lineno) {
                     let noqa = noqa_directives.entry(noqa_lineno - 1).or_insert_with(|| {
                         (noqa::extract_noqa_directive(lines[noqa_lineno - 1]), vec![])
                     });

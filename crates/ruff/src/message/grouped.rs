@@ -1,12 +1,15 @@
 use crate::fs::relativize_path;
 use crate::jupyter::JupyterIndex;
+use crate::message::diff::calculate_print_width;
 use crate::message::text::{MessageCodeFrame, RuleCodeAndBody};
 use crate::message::{
     group_messages_by_filename, Emitter, EmitterContext, Message, MessageWithLocation,
 };
 use colored::Colorize;
+use ruff_python_ast::source_code::OneIndexed;
 use std::fmt::{Display, Formatter};
 use std::io::Write;
+use std::num::{NonZeroU32, NonZeroUsize};
 
 #[derive(Default)]
 pub struct GroupedEmitter {
@@ -70,8 +73,8 @@ impl Emitter for GroupedEmitter {
 struct DisplayGroupedMessage<'a> {
     message: MessageWithLocation<'a>,
     show_fix_status: bool,
-    row_length: usize,
-    column_length: usize,
+    row_length: NonZeroUsize,
+    column_length: NonZeroUsize,
     jupyter_index: Option<&'a JupyterIndex>,
 }
 
