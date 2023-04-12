@@ -163,7 +163,7 @@ pub fn function_call_in_dataclass_defaults(checker: &mut Checker, body: &[Stmt])
                         FunctionCallInDataclassDefaultArgument {
                             name: compose_call_path(func),
                         },
-                        Range::from(expr),
+                        expr.range(),
                     ));
                 }
             }
@@ -182,7 +182,7 @@ pub fn mutable_dataclass_default(checker: &mut Checker, body: &[Stmt]) {
             if is_mutable_expr(value) {
                 checker
                     .diagnostics
-                    .push(Diagnostic::new(MutableDataclassDefault, Range::from(value)));
+                    .push(Diagnostic::new(MutableDataclassDefault, value.range()));
             }
         }
     }

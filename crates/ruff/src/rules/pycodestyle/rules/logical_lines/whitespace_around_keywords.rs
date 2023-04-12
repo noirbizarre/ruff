@@ -120,17 +120,11 @@ pub(crate) fn whitespace_around_keywords(line: &LogicalLine) -> Vec<(Location, D
                 match line.leading_whitespace(&token) {
                     (Whitespace::Tab, offset) => {
                         let start = token.start();
-                        diagnostics.push((
-                            Location::new(start.row(), start.column() - offset),
-                            TabBeforeKeyword.into(),
-                        ));
+                        diagnostics.push((start - offset, TabBeforeKeyword.into()));
                     }
                     (Whitespace::Many, offset) => {
                         let start = token.start();
-                        diagnostics.push((
-                            Location::new(start.row(), start.column() - offset),
-                            MultipleSpacesBeforeKeyword.into(),
-                        ));
+                        diagnostics.push((start - offset, MultipleSpacesBeforeKeyword.into()));
                     }
                     _ => {}
                 }

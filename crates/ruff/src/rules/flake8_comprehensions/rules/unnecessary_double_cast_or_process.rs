@@ -1,4 +1,3 @@
-use ruff_text_size::TextRange;
 use rustpython_parser::ast::{Expr, ExprKind};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic};

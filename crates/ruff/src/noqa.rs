@@ -186,7 +186,7 @@ pub fn add_noqa(
     path: &Path,
     diagnostics: &[Diagnostic],
     contents: &str,
-    commented_lines: &[usize],
+    commented_lines: &[TextRange],
     noqa_line_for: &IntMap<usize, usize>,
     line_ending: LineEnding,
 ) -> Result<usize> {
@@ -204,7 +204,7 @@ pub fn add_noqa(
 fn add_noqa_inner(
     diagnostics: &[Diagnostic],
     contents: &str,
-    commented_lines: &[usize],
+    commented_lines: &[TextRange],
     noqa_line_for: &IntMap<usize, usize>,
     line_ending: LineEnding,
 ) -> (usize, String) {

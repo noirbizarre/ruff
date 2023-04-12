@@ -185,19 +185,20 @@ pub fn invalid_string_characters(
 
     for line in UniversalNewlineIterator::from(text) {
         for (column, match_) in line.match_indices(&['\x08', '\x1A', '\x1B', '\0', '\u{200b}']) {
-            let (replacement, rule): (&str, DiagnosticKind) = match match_.chars().next().unwrap() {
+            let c = match_.chars().next().unwrap();
+            let (replacement, rule): (&str, DiagnosticKind) = match c {
                 '\x08' => ("\\b", InvalidCharacterBackspace.into()),
                 '\x1A' => ("\\x1A", InvalidCharacterSub.into()),
                 '\x1B' => ("\\x1B", InvalidCharacterEsc.into()),
                 '\0' => ("\\0", InvalidCharacterNul.into()),
                 '\u{200b}' => ("\\u200b", InvalidCharacterZeroWidthSpace.into()),
                 _ => {
-                    char_offset += 1;
                     continue;
                 }
             };
+
             let location = offset + TextSize::try_from(column).unwrap();
-            let range = TextRange::at(location, match_.chars().next().unwrap().text_len());
+            let range = TextRange::at(location, c.text_len());
 
             let mut diagnostic = Diagnostic::new(rule, range);
             if autofix {
@@ -208,7 +209,6 @@ pub fn invalid_string_characters(
                 ));
             }
             diagnostics.push(diagnostic);
-            char_offset += 1;
         }
 
         offset += line.text_len();

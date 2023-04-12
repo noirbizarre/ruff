@@ -1,3 +1,4 @@
+use ruff_text_size::TextSize;
 use rustpython_parser::ast::Location;
 
 use super::{LogicalLine, Whitespace};
@@ -111,10 +112,7 @@ pub(crate) fn extraneous_whitespace(line: &LogicalLine) -> Vec<(Location, Diagno
             TokenKind::Lbrace | TokenKind::Lpar | TokenKind::Lsqb => {
                 if !matches!(line.trailing_whitespace(&token), Whitespace::None) {
                     let end = token.end();
-                    diagnostics.push((
-                        Location::new(end.row(), end.column()),
-                        WhitespaceAfterOpenBracket.into(),
-                    ));
+                    diagnostics.push((end, WhitespaceAfterOpenBracket.into()));
                 }
             }
             TokenKind::Rbrace
@@ -135,10 +133,8 @@ pub(crate) fn extraneous_whitespace(line: &LogicalLine) -> Vec<(Location, Diagno
                 {
                     if !matches!(last_token, Some(TokenKind::Comma)) {
                         let start = token.start();
-                        diagnostics.push((
-                            Location::new(start.row(), start.column() - offset),
-                            diagnostic_kind,
-                        ));
+                        diagnostics
+                            .push((start - TextSize::try_from(offset).unwrap(), diagnostic_kind));
                     }
                 }
             }

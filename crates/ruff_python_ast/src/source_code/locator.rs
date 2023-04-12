@@ -1,15 +1,40 @@
 //! Struct used to efficiently slice source code at (row, column) Locations.
 
+use crate::source_code::{LineIndex, OneIndexed, SourceCode};
+use once_cell::unsync::OnceCell;
 use ruff_text_size::{TextLen, TextRange, TextSize};
 use std::ops::Add;
 
 pub struct Locator<'a> {
     contents: &'a str,
+    index: OnceCell<LineIndex>,
 }
 
 impl<'a> Locator<'a> {
     pub const fn new(contents: &'a str) -> Self {
-        Self { contents }
+        Self {
+            contents,
+            index: OnceCell::new(),
+        }
+    }
+
+    #[deprecated(
+        note = "This is expensive, avoid using outside of the diagnostic phase. Prefer the other `Locator` methods instead."
+    )]
+    pub fn compute_line_index(&self, offset: TextSize) -> OneIndexed {
+        self.to_index().line_index(offset)
+    }
+
+    fn to_index(&self) -> &LineIndex {
+        self.index
+            .get_or_init(|| LineIndex::from_source_text(self.contents))
+    }
+
+    pub fn to_source_code(&self) -> SourceCode {
+        SourceCode {
+            index: self.to_index(),
+            text: self.contents,
+        }
     }
 
     /// Computes the start position of the line of `offset`.

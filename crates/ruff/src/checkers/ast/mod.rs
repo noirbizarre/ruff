@@ -858,7 +858,7 @@ where
                     .rules
                     .enabled(Rule::ModuleImportNotAtTopOfFile)
                 {
-                    pycodestyle::rules::module_import_not_at_top_of_file(self, stmt);
+                    pycodestyle::rules::module_import_not_at_top_of_file(self, stmt, self.locator);
                 }
 
                 if self.settings.rules.enabled(Rule::GlobalStatement) {
@@ -1117,7 +1117,7 @@ where
                     .rules
                     .enabled(Rule::ModuleImportNotAtTopOfFile)
                 {
-                    pycodestyle::rules::module_import_not_at_top_of_file(self, stmt);
+                    pycodestyle::rules::module_import_not_at_top_of_file(self, stmt, self.locator);
                 }
 
                 if self.settings.rules.enabled(Rule::GlobalStatement) {

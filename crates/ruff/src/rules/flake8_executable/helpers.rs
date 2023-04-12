@@ -12,7 +12,7 @@ use ruff_text_size::{TextLen, TextSize};
 static SHEBANG_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^(?P<spaces>\s*)#!(?P<directive>.*)").unwrap());
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ShebangDirective<'a> {
     None,
     // whitespace length, start of shebang, end, shebang contents
@@ -72,11 +72,8 @@ mod tests {
 
     #[test]
     fn shebang_extract_match() {
-        assert!(matches!(
-            extract_shebang("not a match"),
-            ShebangDirective::None
-        ));
-        assert!(matches!(
+        assert_eq!(extract_shebang("not a match"), ShebangDirective::None);
+        assert_eq!(
             extract_shebang("#!/usr/bin/env python"),
             ShebangDirective::Match(
                 TextSize::from(0),
@@ -84,8 +81,8 @@ mod tests {
                 TextSize::from(21),
                 "/usr/bin/env python"
             )
-        ));
-        assert!(matches!(
+        );
+        assert_eq!(
             extract_shebang("  #!/usr/bin/env python"),
             ShebangDirective::Match(
                 TextSize::from(2),
@@ -93,10 +90,10 @@ mod tests {
                 TextSize::from(23),
                 "/usr/bin/env python"
             )
-        ));
-        assert!(matches!(
+        );
+        assert_eq!(
             extract_shebang("print('test')  #!/usr/bin/python"),
             ShebangDirective::None
-        ));
+        );
     }
 }

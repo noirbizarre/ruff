@@ -1,5 +1,4 @@
 use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
 use rustpython_parser::lexer::LexResult;
 
 use ruff_diagnostics::{Diagnostic, Fix};
@@ -136,7 +135,9 @@ pub fn check_logical_lines(
             }
         }
         if line.flags().contains(TokenFlags::COMMENT) {
-            for (range, kind) in whitespace_before_comment(&line.tokens(), locator) {
+            for (range, kind) in
+                whitespace_before_comment(&line.tokens(), locator, prev_line.is_none())
+            {
                 if settings.rules.enabled(kind.rule()) {
                     diagnostics.push(Diagnostic {
                         kind,
@@ -161,8 +162,7 @@ pub fn check_logical_lines(
 
         // Extract the indentation level.
         let Some(start_loc) = line.first_token_location() else { continue; };
-        let start_line =
-            locator.slice(TextRange::new(Location::new(start_loc.row(), 0), start_loc));
+        let start_line = locator.slice(TextRange::new(locator.line_start(start_loc), start_loc));
         let indent_level = expand_indent(start_line);
         let indent_size = 4;
 

@@ -9,7 +9,7 @@ use colored::Colorize;
 use ruff_python_ast::source_code::OneIndexed;
 use std::fmt::{Display, Formatter};
 use std::io::Write;
-use std::num::{NonZeroU32, NonZeroUsize};
+use std::num::NonZeroUsize;
 
 #[derive(Default)]
 pub struct GroupedEmitter {

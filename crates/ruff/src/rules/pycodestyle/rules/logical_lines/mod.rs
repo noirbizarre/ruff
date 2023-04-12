@@ -1,5 +1,5 @@
 use bitflags::bitflags;
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextLen, TextRange, TextSize};
 use rustpython_parser::ast::Location;
 use rustpython_parser::lexer::LexResult;
 use std::fmt::{Debug, Formatter};
@@ -248,8 +248,8 @@ impl<'a> LogicalLine<'a> {
         Whitespace::leading(self.text_after(token))
     }
 
-    /// Returns the whitespace and whitespace character-length *before* the `token`
-    pub fn leading_whitespace(&self, token: &LogicalLineToken<'a>) -> (Whitespace, usize) {
+    /// Returns the whitespace and whitespace byte-length *before* the `token`
+    pub fn leading_whitespace(&self, token: &LogicalLineToken<'a>) -> (Whitespace, TextSize) {
         Whitespace::trailing(self.text_before(token))
     }
 
@@ -515,26 +515,28 @@ impl Whitespace {
         }
     }
 
-    fn trailing(content: &str) -> (Self, usize) {
-        let mut count = 0;
+    fn trailing(content: &str) -> (Self, TextSize) {
+        let mut len = TextSize::default();
+        let mut count = 0usize;
 
         for c in content.chars().rev() {
             if c == '\t' {
-                return (Self::Tab, count + 1);
+                return (Self::Tab, len + c.text_len());
             } else if matches!(c, '\n' | '\r') {
                 // Indent
-                return (Self::None, 0);
+                return (Self::None, TextSize::default());
             } else if c.is_whitespace() {
                 count += 1;
+                len += c.text_len();
             } else {
                 break;
             }
         }
 
         match count {
-            0 => (Self::None, 0),
-            1 => (Self::Single, count),
-            _ => (Self::Many, count),
+            0 => (Self::None, TextSize::default()),
+            1 => (Self::Single, len),
+            _ => (Self::Many, len),
         }
     }
 }

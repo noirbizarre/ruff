@@ -1,4 +1,4 @@
-use ruff_text_size::{TextLen, TextRange};
+use ruff_text_size::{TextLen, TextRange, TextSize};
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
@@ -22,44 +22,25 @@ pub fn tab_indentation(
 ) -> Option<Diagnostic> {
     let indent = leading_space(line);
     if let Some(tab_index) = indent.find('\t') {
+        let tab_offset = line_range.start() + TextSize::try_from(tab_index).unwrap();
+
         // If the tab character is within a multi-line string, abort.
-        if let Ok(range_index) = string_ranges.binary_search_by(|range| {
-            let start = range.location.row();
-            let end = range.end_location.row();
-            if start > lineno {
-                std::cmp::Ordering::Greater
-            } else if end < lineno {
+        if let Ok(_) = string_ranges.binary_search_by(|range| {
+            if tab_offset < range.start() {
                 std::cmp::Ordering::Less
-            } else {
+            } else if range.contains(tab_offset) {
                 std::cmp::Ordering::Equal
+            } else {
+                std::cmp::Ordering::Greater
             }
         }) {
-            let string_range = &string_ranges[range_index];
-            let start = string_range.location;
-            let end = string_range.end_location;
-
-            // Tab is contained in the string range by virtue of lines.
-            if lineno != start.row() && lineno != end.row() {
-                return None;
-            }
-
-            let tab_column = line[..tab_index].chars().count();
-
-            // Tab on first line of the quoted range, following the quote.
-            if lineno == start.row() && tab_column > start.column() {
-                return None;
-            }
-
-            // Tab on last line of the quoted range, preceding the quote.
-            if lineno == end.row() && tab_column < end.column() {
-                return None;
-            }
+            None
+        } else {
+            Some(Diagnostic::new(
+                TabIndentation,
+                TextRange::at(line_range.start(), indent.text_len()),
+            ))
         }
-
-        Some(Diagnostic::new(
-            TabIndentation,
-            TextRange::at(line_range.start(), indent.text_len()),
-        ))
     } else {
         None
     }
