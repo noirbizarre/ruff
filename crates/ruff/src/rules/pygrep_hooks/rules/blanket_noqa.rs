@@ -24,7 +24,7 @@ pub fn blanket_noqa(diagnostics: &mut Vec<Diagnostic>, line_range: TextRange, li
         diagnostics.push(Diagnostic::new(
             BlanketNOQA,
             TextRange::at(
-                line_range.start() + match_.start(),
+                line_range.start() + TextSize::try_from(match_.start()).unwrap(),
                 match_.as_str().text_len(),
             ),
         ));

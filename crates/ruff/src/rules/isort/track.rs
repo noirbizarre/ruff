@@ -30,6 +30,7 @@ pub struct ImportTracker<'a> {
     is_stub: bool,
     blocks: Vec<Block<'a>>,
     split_index: usize,
+    exclusion_index: usize,
     nested: bool,
 }
 
@@ -41,6 +42,7 @@ impl<'a> ImportTracker<'a> {
             is_stub,
             blocks: vec![Block::default()],
             split_index: 0,
+            exclusion_index: 0,
             nested: false,
         }
     }
@@ -116,8 +118,8 @@ where
 {
     fn visit_stmt(&mut self, stmt: &'b Stmt) {
         // Track manual splits.
-        while self.split_index < self.directives.splits.len() {
-            if stmt.start().row() >= self.directives.splits[self.split_index] {
+        for split in &self.directives.splits[self.split_index..] {
+            if stmt.start() >= *split {
                 self.finalize(self.trailer_for(stmt));
                 self.split_index += 1;
             } else {
@@ -125,11 +127,23 @@ where
             }
         }
 
+        for exclusion in &self.directives.exclusions[self.exclusion_index..] {
+            if exclusion.start() > stmt.start() {
+                self.exclusion_index += 1;
+            }
+        }
+
+        let is_excluded = self
+            .directives
+            .exclusions
+            .get(self.exclusion_index)
+            .map_or(false, |range| range.contains(stmt.start()));
+
         // Track imports.
         if matches!(
             stmt.node,
             StmtKind::Import { .. } | StmtKind::ImportFrom { .. }
-        ) && !self.directives.exclusions.contains(&stmt.start().row())
+        ) && !is_excluded
         {
             self.track_import(stmt);
         } else {

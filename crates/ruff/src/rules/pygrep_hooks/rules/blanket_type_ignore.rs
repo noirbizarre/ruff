@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use ruff_text_size::{TextLen, TextRange};
+use ruff_text_size::{TextLen, TextRange, TextSize};
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
@@ -21,12 +21,10 @@ pub fn blanket_type_ignore(diagnostics: &mut Vec<Diagnostic>, line_range: TextRa
     for match_ in TYPE_IGNORE_PATTERN.find_iter(line) {
         if let Ok(codes) = parse_type_ignore_tag(line[match_.end()..].trim()) {
             if codes.is_empty() {
-                let start = line[..match_.start()].chars().count();
-                let end = start + line[match_.start()..match_.end()].chars().count();
                 diagnostics.push(Diagnostic::new(
                     BlanketTypeIgnore,
                     TextRange::at(
-                        line_range.start() + match_.start(),
+                        line_range.start() + TextSize::try_from(match_.start()).unwrap(),
                         match_.as_str().text_len(),
                     ),
                 ));

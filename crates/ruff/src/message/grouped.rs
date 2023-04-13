@@ -55,11 +55,11 @@ impl Emitter for GroupedEmitter {
                     writer,
                     "{}",
                     DisplayGroupedMessage {
+                        jupyter_index: context.jupyter_index(message.filename()),
                         message,
                         show_fix_status: self.show_fix_status,
                         row_length,
                         column_length,
-                        jupyter_index: context.jupyter_index(message.filename()),
                     }
                 )?;
             }

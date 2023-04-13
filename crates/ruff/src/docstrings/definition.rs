@@ -1,4 +1,6 @@
+use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser::ast::{Expr, Stmt};
+use std::ops::Deref;
 
 use ruff_python_semantic::analyze::visibility::{
     class_visibility, function_visibility, method_visibility, Modifier, Visibility, VisibleScope,
@@ -26,8 +28,60 @@ pub struct Docstring<'a> {
     pub kind: DefinitionKind<'a>,
     pub expr: &'a Expr,
     pub contents: &'a str,
-    pub body: &'a str,
+    pub body_range: TextRange,
     pub indentation: &'a str,
+}
+
+pub struct DocstringBody<'a> {
+    docstring: &'a Docstring<'a>,
+}
+
+impl<'a> Docstring<'a> {
+    pub fn body(&self) -> DocstringBody {
+        DocstringBody { docstring: &self }
+    }
+
+    pub const fn start(&self) -> TextSize {
+        self.expr.start()
+    }
+
+    pub const fn end(&self) -> TextSize {
+        self.expr.end()
+    }
+
+    pub const fn range(&self) -> TextRange {
+        self.expr.range()
+    }
+
+    pub fn leading_quote(&self) -> &'a str {
+        &self.contents[TextRange::new(self.start(), self.body_range.start())]
+    }
+
+    pub fn trailing_quote(&self) -> &'a str {
+        &self.contents[TextRange::new(self.body_range.end(), self.end())]
+    }
+}
+
+impl<'a> DocstringBody<'a> {
+    pub const fn start(&self) -> TextSize {
+        self.docstring.body_range.start()
+    }
+
+    pub const fn end(&self) -> TextSize {
+        self.docstring.body_range.end()
+    }
+
+    pub fn as_str(&self) -> &'a str {
+        &self.docstring.contents[self.docstring.body_range]
+    }
+}
+
+impl Deref for DocstringBody<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
 }
 
 #[derive(Copy, Clone)]

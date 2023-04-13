@@ -45,7 +45,7 @@ pub fn non_imperative_mood(
         return;
     }
 
-    let body = docstring.body;
+    let body = docstring.body();
 
     // Find first line, disregarding whitespace.
     let line = match body.trim().universal_newlines().next() {
@@ -61,8 +61,7 @@ pub fn non_imperative_mood(
         return;
     }
     if let Some(false) = MOOD.is_imperative(&first_word_norm) {
-        let diagnostic =
-            Diagnostic::new(NonImperativeMood(line.to_string()), docstring.expr.range());
+        let diagnostic = Diagnostic::new(NonImperativeMood(line.to_string()), docstring.range());
         checker.diagnostics.push(diagnostic);
     }
 }

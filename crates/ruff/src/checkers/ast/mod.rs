@@ -3,8 +3,7 @@ use std::path::Path;
 
 use itertools::Itertools;
 use log::error;
-use nohash_hasher::IntMap;
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextRange, TextSize};
 use rustc_hash::{FxHashMap, FxHashSet};
 use rustpython_common::cformat::{CFormatError, CFormatErrorType};
 use rustpython_parser::ast::{
@@ -39,6 +38,7 @@ use crate::docstrings::definition::{
 };
 use crate::fs::relativize_path;
 use crate::importer::Importer;
+use crate::noqa::NoqaMapping;
 use crate::registry::{AsRule, Rule};
 use crate::rules::{
     flake8_2020, flake8_annotations, flake8_bandit, flake8_blind_except, flake8_boolean_trap,
@@ -67,7 +67,7 @@ pub struct Checker<'a> {
     autofix: flags::Autofix,
     noqa: flags::Noqa,
     pub settings: &'a Settings,
-    pub noqa_line_for: &'a IntMap<usize, usize>,
+    pub noqa_line_for: &'a NoqaMapping,
     pub locator: &'a Locator<'a>,
     pub stylist: &'a Stylist<'a>,
     pub indexer: &'a Indexer,
@@ -85,7 +85,7 @@ impl<'a> Checker<'a> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         settings: &'a Settings,
-        noqa_line_for: &'a IntMap<usize, usize>,
+        noqa_line_for: &'a NoqaMapping,
         autofix: flags::Autofix,
         noqa: flags::Noqa,
         path: &'a Path,
@@ -126,7 +126,7 @@ impl<'a> Checker<'a> {
     }
 
     /// Return `true` if a `Rule` is disabled by a `noqa` directive.
-    pub fn rule_is_ignored(&self, code: Rule, lineno: usize) -> bool {
+    pub fn rule_is_ignored(&self, code: Rule, offset: TextSize) -> bool {
         // TODO(charlie): `noqa` directives are mostly enforced in `check_lines.rs`.
         // However, in rare cases, we need to check them here. For example, when
         // removing unused imports, we create a single fix that's applied to all
@@ -137,7 +137,7 @@ impl<'a> Checker<'a> {
         if !self.noqa.to_bool() {
             return false;
         }
-        noqa::rule_is_ignored(code, lineno, self.noqa_line_for, self.locator)
+        noqa::rule_is_ignored(code, offset, self.noqa_line_for, self.locator)
     }
 }
 
@@ -4143,10 +4143,12 @@ impl<'a> Checker<'a> {
                 );
                 if binding.kind.is_loop_var() && existing_is_import {
                     if self.settings.rules.enabled(Rule::ImportShadowedByLoopVar) {
+                        let line = self.locator.compute_line_index(existing.range.start());
+
                         self.diagnostics.push(Diagnostic::new(
                             pyflakes::rules::ImportShadowedByLoopVar {
                                 name: name.to_string(),
-                                line: existing.range.start().row(),
+                                line,
                             },
                             binding.range,
                         ));
@@ -4162,10 +4164,12 @@ impl<'a> Checker<'a> {
                             ))
                     {
                         if self.settings.rules.enabled(Rule::RedefinedWhileUnused) {
+                            let line = self.locator.compute_line_index(existing.range.start());
+
                             let mut diagnostic = Diagnostic::new(
                                 pyflakes::rules::RedefinedWhileUnused {
                                     name: name.to_string(),
-                                    line: existing.range.start().row(),
+                                    line,
                                 },
                                 matches!(
                                     binding.kind,
@@ -4180,7 +4184,10 @@ impl<'a> Checker<'a> {
                             );
                             if let Some(parent) = binding.source.as_ref() {
                                 if matches!(parent.node, StmtKind::ImportFrom { .. })
-                                    && parent.start().row() != binding.range.start().row()
+                                    && self.locator.contains_line_break(TextRange::new(
+                                        parent.start(),
+                                        binding.range.start(),
+                                    ))
                                 {
                                     diagnostic.set_parent(parent.start());
                                 }
@@ -5025,10 +5032,12 @@ impl<'a> Checker<'a> {
                         if let Some(indices) = self.ctx.shadowed_bindings.get(index) {
                             for index in indices {
                                 let rebound = &self.ctx.bindings[*index];
+                                let line = self.locator.compute_line_index(binding.range.start());
+
                                 let mut diagnostic = Diagnostic::new(
                                     pyflakes::rules::RedefinedWhileUnused {
                                         name: (*name).to_string(),
-                                        line: binding.range.start().row(),
+                                        line,
                                     },
                                     matches!(
                                         rebound.kind,
@@ -5044,7 +5053,10 @@ impl<'a> Checker<'a> {
                                 );
                                 if let Some(parent) = &rebound.source {
                                     if matches!(parent.node, StmtKind::ImportFrom { .. })
-                                        && parent.start().row() != rebound.range.start().row()
+                                        && self.locator.contains_line_break(TextRange::new(
+                                            parent.start(),
+                                            rebound.range.start(),
+                                        ))
                                     {
                                         diagnostic.set_parent(parent.start());
                                     }
@@ -5131,16 +5143,16 @@ impl<'a> Checker<'a> {
                     let exceptions = binding.exceptions;
                     let child: &Stmt = defined_by.into();
 
-                    let diagnostic_lineno = binding.range.start().row();
-                    let parent_lineno = if matches!(child.node, StmtKind::ImportFrom { .. }) {
-                        Some(child.start().row())
+                    let diagnostic_offset = binding.range.start();
+                    let parent_offset = if matches!(child.node, StmtKind::ImportFrom { .. }) {
+                        Some(child.start())
                     } else {
                         None
                     };
 
-                    if self.rule_is_ignored(Rule::UnusedImport, diagnostic_lineno)
-                        || parent_lineno.map_or(false, |parent_lineno| {
-                            self.rule_is_ignored(Rule::UnusedImport, parent_lineno)
+                    if self.rule_is_ignored(Rule::UnusedImport, diagnostic_offset)
+                        || parent_offset.map_or(false, |parent_offset| {
+                            self.rule_is_ignored(Rule::UnusedImport, parent_offset)
                         })
                     {
                         ignored
@@ -5376,23 +5388,24 @@ impl<'a> Checker<'a> {
                     ));
 
                     if pydocstyle::helpers::should_ignore_docstring(contents) {
+                        let location = self.locator.compute_source_location(expr.start());
                         warn_user!(
                         "Docstring at {}:{}:{} contains implicit string concatenation; ignoring...",
                         relativize_path(self.path),
-                        expr.start().row(),
-                        expr.start().column() + 1
+                        location.row,
+                        location.column
                     );
                         continue;
                     }
 
                     // SAFETY: Safe for docstrings that pass `should_ignore_docstring`.
-                    let body = str::raw_contents(contents).unwrap();
+                    let body_range = str::raw_contents_range(contents).unwrap();
                     let docstring = Docstring {
                         kind: definition.kind,
                         expr,
                         contents,
                         indentation,
-                        body,
+                        body_range,
                     };
 
                     if !pydocstyle::rules::not_empty(self, &docstring) {
@@ -5542,7 +5555,7 @@ pub fn check_ast(
     locator: &Locator,
     stylist: &Stylist,
     indexer: &Indexer,
-    noqa_line_for: &IntMap<usize, usize>,
+    noqa_line_for: &NoqaMapping,
     settings: &Settings,
     autofix: flags::Autofix,
     noqa: flags::Noqa,

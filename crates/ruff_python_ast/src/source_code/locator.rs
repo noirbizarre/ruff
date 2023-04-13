@@ -1,6 +1,6 @@
 //! Struct used to efficiently slice source code at (row, column) Locations.
 
-use crate::source_code::{LineIndex, OneIndexed, SourceCode};
+use crate::source_code::{LineIndex, OneIndexed, SourceCode, SourceLocation};
 use once_cell::unsync::OnceCell;
 use ruff_text_size::{TextLen, TextRange, TextSize};
 use std::ops::Add;
@@ -23,6 +23,13 @@ impl<'a> Locator<'a> {
     )]
     pub fn compute_line_index(&self, offset: TextSize) -> OneIndexed {
         self.to_index().line_index(offset)
+    }
+
+    #[deprecated(
+        note = "This is expensive, avoid using outside of the diagnostic phase. Prefer the other `Locator` methods instead."
+    )]
+    pub fn compute_source_location(&self, offset: TextSize) -> SourceLocation {
+        self.to_source_code().source_location(offset)
     }
 
     fn to_index(&self) -> &LineIndex {

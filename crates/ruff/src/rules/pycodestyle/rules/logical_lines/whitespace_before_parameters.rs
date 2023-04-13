@@ -2,7 +2,6 @@ use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::token_kind::TokenKind;
 use ruff_text_size::{TextRange, TextSize};
-use rustpython_parser::ast::Location;
 
 use super::LogicalLineTokens;
 

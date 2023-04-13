@@ -101,7 +101,7 @@ fn fingerprint(message: &Message) -> String {
         range,
         fix: _fix,
         file,
-        noqa_row: _noqa_row,
+        noqa_offset: _,
     } = message;
 
     let mut hasher = DefaultHasher::new();

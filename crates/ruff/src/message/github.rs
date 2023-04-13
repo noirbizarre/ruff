@@ -26,7 +26,7 @@ impl Emitter for GithubEmitter {
                     column: OneIndexed::from_zero_indexed(0),
                 }
             } else {
-                source_location
+                source_location.clone()
             };
 
             let end_location = message.compute_end_location();

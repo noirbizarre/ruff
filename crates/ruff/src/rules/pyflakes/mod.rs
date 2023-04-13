@@ -255,15 +255,17 @@ mod tests {
         let locator = Locator::new(&contents);
         let stylist = Stylist::from_tokens(&tokens, &locator);
         let indexer = Indexer::from_tokens(&tokens, &locator);
-        let directives =
-            directives::extract_directives(&tokens, directives::Flags::from_settings(&settings));
+        let directives = directives::extract_directives(
+            &tokens,
+            directives::Flags::from_settings(&settings),
+            &locator,
+        );
         let LinterResult {
             data: (mut diagnostics, _imports),
             ..
         } = check_path(
             Path::new("<filename>"),
             None,
-            &contents,
             tokens,
             &locator,
             &stylist,

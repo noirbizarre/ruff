@@ -60,6 +60,34 @@ impl LineIndex {
         self.inner.kind
     }
 
+    /// Returns the row and column index for an offset.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// # use ruff_text_size::TextSize;
+    /// # use ruff_python_ast::source_code::{LineIndex, OneIndexed, SourceLocation};
+    /// let source = "def a():\n    pass";
+    /// let index = LineIndex::from_source_text(source);
+    ///
+    /// assert_eq!(
+    ///     index.source_location(TextSize::from(0), source),
+    ///     SourceLocation { row: OneIndexed::from_zero_indexed(0), column: OneIndexed::from_zero_indexed(0) }
+    /// );
+    ///
+    /// assert_eq!(
+    ///     index.source_location(TextSize::from(4), source),
+    ///     SourceLocation { row: OneIndexed::from_zero_indexed(0), column: OneIndexed::from_zero_indexed(4) }
+    /// );
+    /// assert_eq!(
+    ///     index.source_location(TextSize::from(13), source),
+    ///     SourceLocation { row: OneIndexed::from_zero_indexed(1), column: OneIndexed::from_zero_indexed(4) }
+    /// );
+    /// ```
+    ///
+    /// ## Panics
+    ///
+    /// If the offset is out of bounds.
     pub fn source_location(&self, offset: TextSize, content: &str) -> SourceLocation {
         match self.line_starts().binary_search(&offset) {
             // Offset is at the start of a line
@@ -91,11 +119,32 @@ impl LineIndex {
         self.line_starts().len()
     }
 
-    pub(crate) fn line_index(&self, offset: TextSize) -> OneIndexed {
+    /// Returns the row number for a given offset.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// # use ruff_text_size::TextSize;
+    /// # use ruff_python_ast::source_code::{LineIndex, OneIndexed, SourceLocation};
+    /// let source = "def a():\n    pass";
+    /// let index = LineIndex::from_source_text(source);
+    ///
+    /// assert_eq!(index.line_index(TextSize::from(0)), OneIndexed::from_zero_indexed(0));
+    /// assert_eq!(index.line_index(TextSize::from(4)), OneIndexed::from_zero_indexed(0));
+    /// assert_eq!(index.line_index(TextSize::from(13)), OneIndexed::from_zero_indexed(1));
+    /// ```
+    ///
+    /// ## Panics
+    ///
+    /// If the offset is out of bounds.
+    pub fn line_index(&self, offset: TextSize) -> OneIndexed {
         match self.line_starts().binary_search(&offset) {
             // Offset is at the start of a line
             Ok(row) => OneIndexed::from_zero_indexed(row),
-            Err(row) => OneIndexed::from_zero_indexed(row),
+            Err(row) => {
+                // SAFETY: Safe because the index always contains an entry for the offset 0
+                OneIndexed::from_zero_indexed(row - 1)
+            }
         }
     }
 

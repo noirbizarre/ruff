@@ -3,7 +3,6 @@ use rustpython_parser::ast::Stmt;
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
-use ruff_python_ast::types::Range;
 
 /// ## What it does
 /// Checks for imports that use non-standard naming conventions, like
@@ -52,7 +51,7 @@ pub fn check_banned_import(
         {
             return Some(Diagnostic::new(
                 BannedImportAlias(name.to_string(), asname.to_string()),
-                Range::from(import_from),
+                import_from.range(),
             ));
         }
     }

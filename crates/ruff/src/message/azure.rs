@@ -33,7 +33,7 @@ impl Emitter for AzureEmitter {
                         ;sourcepath={filename};linenumber={line};columnnumber={col};code={code};]{body}",
                 filename = message.filename(),
                 line = location.row,
-                col = location.row,
+                col = location.column,
                 code = message.kind.rule().noqa_code(),
                 body = message.kind.body,
             )?;

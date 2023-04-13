@@ -25,10 +25,10 @@ impl AlwaysAutofixableViolation for NewLineAfterLastParagraph {
 /// D209
 pub fn newline_after_last_paragraph(checker: &mut Checker, docstring: &Docstring) {
     let contents = docstring.contents;
-    let body = docstring.body;
+    let body = docstring.body();
 
     let mut line_count = 0;
-    for line in NewlineWithTrailingNewline::from(body) {
+    for line in NewlineWithTrailingNewline::from(body.as_str()) {
         if !line.trim().is_empty() {
             line_count += 1;
         }

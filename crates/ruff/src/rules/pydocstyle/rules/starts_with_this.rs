@@ -17,7 +17,7 @@ impl Violation for DocstringStartsWithThis {
 
 /// D404
 pub fn starts_with_this(checker: &mut Checker, docstring: &Docstring) {
-    let body = docstring.body;
+    let body = docstring.body();
 
     let trimmed = body.trim();
     if trimmed.is_empty() {
@@ -30,8 +30,7 @@ pub fn starts_with_this(checker: &mut Checker, docstring: &Docstring) {
     if normalize_word(first_word) != "this" {
         return;
     }
-    checker.diagnostics.push(Diagnostic::new(
-        DocstringStartsWithThis,
-        docstring.expr.range(),
-    ));
+    checker
+        .diagnostics
+        .push(Diagnostic::new(DocstringStartsWithThis, docstring.range()));
 }

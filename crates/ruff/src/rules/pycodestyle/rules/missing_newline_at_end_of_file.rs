@@ -2,7 +2,6 @@ use ruff_text_size::{TextLen, TextRange};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
-use ruff_python_ast::newlines::StrExt;
 use ruff_python_ast::source_code::{Locator, Stylist};
 
 /// ## What it does
@@ -44,18 +43,16 @@ pub fn no_newline_at_end_of_file(
     if !locator.contents().ends_with(['\n', '\r']) {
         // Note: if `lines.last()` is `None`, then `contents` is empty (and so we don't
         // want to raise W292 anyway).
-        if let Some(line) = locator.contents().universal_newlines().last() {
-            // Both locations are at the end of the file (and thus the same).
-            let range = TextRange::empty(locator.contents().text_len());
-            let mut diagnostic = Diagnostic::new(MissingNewlineAtEndOfFile, range);
-            if autofix {
-                diagnostic.set_fix(Edit::insertion(
-                    stylist.line_ending().to_string(),
-                    range.start(),
-                ));
-            }
-            return Some(diagnostic);
+        // Both locations are at the end of the file (and thus the same).
+        let range = TextRange::empty(locator.contents().text_len());
+        let mut diagnostic = Diagnostic::new(MissingNewlineAtEndOfFile, range);
+        if autofix {
+            diagnostic.set_fix(Edit::insertion(
+                stylist.line_ending().to_string(),
+                range.start(),
+            ));
         }
+        return Some(diagnostic);
     }
     None
 }

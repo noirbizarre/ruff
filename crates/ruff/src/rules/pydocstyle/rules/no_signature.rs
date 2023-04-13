@@ -30,15 +30,17 @@ pub fn no_signature(checker: &mut Checker, docstring: &Docstring) {
         return;
     };
 
-    let body = docstring.body;
+    let body = docstring.body();
 
     let Some(first_line) = body.trim().universal_newlines().next() else {
         return;
     };
+
     if !first_line.contains(&format!("{name}(")) {
         return;
     };
+
     checker
         .diagnostics
-        .push(Diagnostic::new(NoSignature, docstring.expr.range()));
+        .push(Diagnostic::new(NoSignature, docstring.range()));
 }

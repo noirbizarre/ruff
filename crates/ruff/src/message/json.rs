@@ -45,6 +45,11 @@ impl Serialize for ExpandedMessages<'_> {
             let start_location = message.compute_start_location();
             let end_location = message.compute_end_location();
 
+            let noqa_location = message
+                .file
+                .source_code()
+                .source_location(message.noqa_offset);
+
             let value = json!({
                 "code": message.kind.rule().noqa_code().to_string(),
                 "message": message.kind.body,
@@ -52,7 +57,7 @@ impl Serialize for ExpandedMessages<'_> {
                 "location": start_location,
                 "end_location": end_location,
                 "filename": message.filename(),
-                "noqa_row": message.noqa_row
+                "noqa_row": noqa_location.row
             });
 
             s.serialize_element(&value)?;

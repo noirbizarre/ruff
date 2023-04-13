@@ -68,7 +68,6 @@ pub struct FixerResult<'a> {
 pub fn check_path(
     path: &Path,
     package: Option<&Path>,
-    contents: &str,
     tokens: Vec<LexResult>,
     locator: &Locator,
     stylist: &Stylist,
@@ -218,7 +217,7 @@ pub fn check_path(
     {
         let ignored = check_noqa(
             &mut diagnostics,
-            contents,
+            locator,
             indexer.comment_ranges(),
             &directives.noqa_line_for,
             settings,
@@ -271,8 +270,11 @@ pub fn add_noqa_to_path(path: &Path, package: Option<&Path>, settings: &Settings
     let indexer = Indexer::from_tokens(&tokens, &locator);
 
     // Extract the `# noqa` and `# isort: skip` directives from the source.
-    let directives =
-        directives::extract_directives(&tokens, directives::Flags::from_settings(settings));
+    let directives = directives::extract_directives(
+        &tokens,
+        directives::Flags::from_settings(settings),
+        &locator,
+    );
 
     // Generate diagnostics, ignoring any existing `noqa` directives.
     let LinterResult {
@@ -281,7 +283,6 @@ pub fn add_noqa_to_path(path: &Path, package: Option<&Path>, settings: &Settings
     } = check_path(
         path,
         package,
-        &contents,
         tokens,
         &locator,
         &stylist,
@@ -306,7 +307,7 @@ pub fn add_noqa_to_path(path: &Path, package: Option<&Path>, settings: &Settings
     add_noqa(
         path,
         &diagnostics.0,
-        &contents,
+        &locator,
         indexer.comment_ranges(),
         &directives.noqa_line_for,
         stylist.line_ending(),
@@ -336,14 +337,16 @@ pub fn lint_only(
     let indexer = Indexer::from_tokens(&tokens, &locator);
 
     // Extract the `# noqa` and `# isort: skip` directives from the source.
-    let directives =
-        directives::extract_directives(&tokens, directives::Flags::from_settings(settings));
+    let directives = directives::extract_directives(
+        &tokens,
+        directives::Flags::from_settings(settings),
+        &locator,
+    );
 
     // Generate diagnostics.
     let result = check_path(
         path,
         package,
-        contents,
         tokens,
         &locator,
         &stylist,
@@ -382,9 +385,8 @@ fn diagnostics_to_messages(
     diagnostics
         .into_iter()
         .map(|diagnostic| {
-            let lineno = diagnostic.start().row();
-            let noqa_row = *directives.noqa_line_for.get(&lineno).unwrap_or(&lineno);
-            Message::from_diagnostic(diagnostic, file.deref().clone(), noqa_row)
+            let noqa_offset = directives.noqa_line_for.resolve(diagnostic.start());
+            Message::from_diagnostic(diagnostic, file.deref().clone(), noqa_offset)
         })
         .collect()
 }
@@ -424,14 +426,16 @@ pub fn lint_fix<'a>(
         let indexer = Indexer::from_tokens(&tokens, &locator);
 
         // Extract the `# noqa` and `# isort: skip` directives from the source.
-        let directives =
-            directives::extract_directives(&tokens, directives::Flags::from_settings(settings));
+        let directives = directives::extract_directives(
+            &tokens,
+            directives::Flags::from_settings(settings),
+            &locator,
+        );
 
         // Generate diagnostics.
         let result = check_path(
             path,
             package,
-            &transformed,
             tokens,
             &locator,
             &stylist,

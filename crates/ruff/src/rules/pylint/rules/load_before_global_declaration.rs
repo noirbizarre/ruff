@@ -2,6 +2,7 @@ use rustpython_parser::ast::Expr;
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
+use ruff_python_ast::source_code::OneIndexed;
 use ruff_python_semantic::scope::ScopeKind;
 
 use crate::checkers::ast::Checker;
@@ -9,7 +10,7 @@ use crate::checkers::ast::Checker;
 #[violation]
 pub struct LoadBeforeGlobalDeclaration {
     pub name: String,
-    pub line: usize,
+    pub line: OneIndexed,
 }
 
 impl Violation for LoadBeforeGlobalDeclaration {
@@ -28,10 +29,11 @@ pub fn load_before_global_declaration(checker: &mut Checker, name: &str, expr: &
     };
     if let Some(stmt) = globals.get(name) {
         if expr.start() < stmt.start() {
+            let location = checker.locator.compute_source_location(stmt.start());
             checker.diagnostics.push(Diagnostic::new(
                 LoadBeforeGlobalDeclaration {
                     name: name.to_string(),
-                    line: stmt.start().row(),
+                    line: location.row,
                 },
                 expr.range(),
             ));

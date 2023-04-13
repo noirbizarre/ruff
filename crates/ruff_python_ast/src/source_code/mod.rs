@@ -174,7 +174,7 @@ impl SourceFileBuilder {
 
     /// Consumes `self` and returns the [`SourceFile`].
     pub fn finish(self) -> SourceFile {
-        // FIXME avoid unwrap
+        // FIXME micha avoid unwrap or simply remove builder?
         SourceFile {
             inner: Arc::new(SourceFileInner {
                 name: self.name,

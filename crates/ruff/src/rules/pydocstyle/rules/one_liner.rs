@@ -25,7 +25,7 @@ impl AlwaysAutofixableViolation for FitsOnOneLine {
 pub fn one_liner(checker: &mut Checker, docstring: &Docstring) {
     let mut line_count = 0;
     let mut non_empty_line_count = 0;
-    for line in NewlineWithTrailingNewline::from(docstring.body) {
+    for line in NewlineWithTrailingNewline::from(docstring.body().as_str()) {
         line_count += 1;
         if !line.trim().is_empty() {
             non_empty_line_count += 1;
@@ -44,14 +44,15 @@ pub fn one_liner(checker: &mut Checker, docstring: &Docstring) {
             ) {
                 // If removing whitespace would lead to an invalid string of quote
                 // characters, avoid applying the fix.
-                let trimmed = docstring.body.trim();
+                let body = docstring.body();
+                let trimmed = body.trim();
                 if !trimmed.ends_with(trailing.chars().last().unwrap())
                     && !trimmed.starts_with(leading.chars().last().unwrap())
                 {
                     diagnostic.set_fix(Edit::replacement(
                         format!("{leading}{trimmed}{trailing}"),
-                        docstring.expr.start(),
-                        docstring.expr.end(),
+                        docstring.start(),
+                        docstring.end(),
                     ));
                 }
             }

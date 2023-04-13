@@ -103,7 +103,7 @@ pub fn invalid_escape_sequence(
                 }
 
                 let location = TextSize::try_from(offset + i).unwrap();
-                let mut range = TextRange::at(location, TextSize::from(2));
+                let range = TextRange::at(location, TextSize::from(2));
                 let mut diagnostic = Diagnostic::new(InvalidEscapeSequence(*next_char), range);
                 if autofix {
                     diagnostic.set_fix(Edit::insertion(

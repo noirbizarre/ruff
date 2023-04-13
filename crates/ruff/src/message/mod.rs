@@ -35,17 +35,21 @@ pub struct Message {
     pub range: TextRange,
     pub fix: Fix,
     pub file: SourceFile,
-    pub noqa_row: usize,
+    pub noqa_offset: TextSize,
 }
 
 impl Message {
-    pub fn from_diagnostic(diagnostic: Diagnostic, file: SourceFile, noqa_row: usize) -> Self {
+    pub fn from_diagnostic(
+        diagnostic: Diagnostic,
+        file: SourceFile,
+        noqa_offset: TextSize,
+    ) -> Self {
         Self {
-            kind: diagnostic.kind,
             range: diagnostic.range(),
+            kind: diagnostic.kind,
             fix: diagnostic.fix,
             file,
-            noqa_row,
+            noqa_offset,
         }
     }
 
@@ -185,7 +189,7 @@ def fibonacci(n):
         )
         .with_fix(Fix::new(vec![Edit::deletion(
             TextSize::from(94),
-            TextSize::from(95),
+            TextSize::from(99),
         )]));
 
         let file_2 = r#"if a == 1: pass"#;
@@ -201,10 +205,13 @@ def fibonacci(n):
             .source_text(file_2)
             .finish();
 
+        let unused_import_start = unused_import.start();
+        let unused_variable_start = unused_variable.start();
+        let undefined_name_start = undefined_name.start();
         vec![
-            Message::from_diagnostic(unused_import, fib_source.clone(), 1),
-            Message::from_diagnostic(unused_variable, fib_source, 1),
-            Message::from_diagnostic(undefined_name, file_2_source, 1),
+            Message::from_diagnostic(unused_import, fib_source.clone(), unused_import_start),
+            Message::from_diagnostic(unused_variable, fib_source, unused_variable_start),
+            Message::from_diagnostic(undefined_name, file_2_source, undefined_name_start),
         ]
     }
 

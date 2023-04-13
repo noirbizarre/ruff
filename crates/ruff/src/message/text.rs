@@ -81,7 +81,7 @@ impl Emitter for TextEmitter {
                 }
             )?;
 
-            // FIXME gate code frame and diff with show source
+            // FIXME micha gate code frame and diff with show source
             writeln!(writer, "{}", MessageCodeFrame { message })?;
 
             if self.show_fix {
@@ -201,13 +201,12 @@ impl Display for MessageCodeFrame<'_> {
         .count();
 
         let label = kind.rule().noqa_code().to_string();
-        let location = self.message.compute_start_location();
 
         let snippet = Snippet {
             title: None,
             slices: vec![Slice {
                 source: source_text,
-                line_start: location.row.get(),
+                line_start: content_start_index.get(),
                 annotations: vec![SourceAnnotation {
                     label: &label,
                     annotation_type: AnnotationType::Error,

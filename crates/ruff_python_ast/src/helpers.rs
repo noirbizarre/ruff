@@ -1066,7 +1066,8 @@ pub fn elif_else_range(stmt: &Stmt, locator: &Locator) -> Option<TextRange> {
 /// Return `true` if a `Stmt` appears to be part of a multi-statement line, with
 /// other statements preceding it.
 pub fn preceded_by_continuation(_stmt: &Stmt, _indexer: &Indexer) -> bool {
-    // FIXME
+    // FIXME micha
+
     // stmt.location.row() > 1
     //     && indexer
     //         .continuation_lines()

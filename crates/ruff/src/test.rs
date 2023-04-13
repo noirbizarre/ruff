@@ -30,8 +30,11 @@ pub fn test_path(path: impl AsRef<Path>, settings: &Settings) -> Result<Vec<Mess
     let locator = Locator::new(&contents);
     let stylist = Stylist::from_tokens(&tokens, &locator);
     let indexer = Indexer::from_tokens(&tokens, &locator);
-    let directives =
-        directives::extract_directives(&tokens, directives::Flags::from_settings(settings));
+    let directives = directives::extract_directives(
+        &tokens,
+        directives::Flags::from_settings(settings),
+        &locator,
+    );
     let LinterResult {
         data: (diagnostics, _imports),
         ..
@@ -39,7 +42,6 @@ pub fn test_path(path: impl AsRef<Path>, settings: &Settings) -> Result<Vec<Mess
         &path,
         path.parent()
             .and_then(|parent| detect_package_root(parent, &settings.namespace_packages)),
-        &contents,
         tokens,
         &locator,
         &stylist,
@@ -65,15 +67,17 @@ pub fn test_path(path: impl AsRef<Path>, settings: &Settings) -> Result<Vec<Mess
             let locator = Locator::new(&contents);
             let stylist = Stylist::from_tokens(&tokens, &locator);
             let indexer = Indexer::from_tokens(&tokens, &locator);
-            let directives =
-                directives::extract_directives(&tokens, directives::Flags::from_settings(settings));
+            let directives = directives::extract_directives(
+                &tokens,
+                directives::Flags::from_settings(settings),
+                &locator,
+            );
             let LinterResult {
                 data: (diagnostics, _imports),
                 ..
             } = check_path(
                 &path,
                 None,
-                &contents,
                 tokens,
                 &locator,
                 &stylist,
@@ -105,7 +109,12 @@ pub fn test_path(path: impl AsRef<Path>, settings: &Settings) -> Result<Vec<Mess
 
     Ok(diagnostics
         .into_iter()
-        .map(|diagnostic| Message::from_diagnostic(diagnostic, source_code.clone(), 1))
+        .map(|diagnostic| {
+            // Not strictly necessary but adds some coverage for this code path
+            let noqa = directives.noqa_line_for.resolve(diagnostic.start());
+
+            Message::from_diagnostic(diagnostic, source_code.clone(), noqa)
+        })
         .sorted()
         .collect())
 }

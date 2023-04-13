@@ -1,10 +1,10 @@
 use ruff_diagnostics::{AutofixKind, Diagnostic, Edit, Violation};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::newlines::StrExt;
+use ruff_text_size::{TextLen, TextSize};
 
 use crate::checkers::ast::Checker;
 use crate::docstrings::definition::Docstring;
-use crate::message::Location;
 use crate::registry::AsRule;
 
 #[violation]
@@ -41,9 +41,9 @@ impl Violation for BlankLineAfterSummary {
 
 /// D205
 pub fn blank_after_summary(checker: &mut Checker, docstring: &Docstring) {
-    let body = docstring.body;
+    let body = docstring.body();
 
-    let mut lines_count = 1;
+    let mut lines_count: usize = 1;
     let mut blanks_count = 0;
     for line in body.trim().universal_newlines().skip(1) {
         lines_count += 1;
@@ -62,24 +62,32 @@ pub fn blank_after_summary(checker: &mut Checker, docstring: &Docstring) {
         );
         if checker.patch(diagnostic.kind.rule()) {
             if blanks_count > 1 {
+                let mut lines = body.universal_newlines();
+                let mut summary_end = body.start();
+
                 // Find the "summary" line (defined as the first non-blank line).
-                let mut summary_line = 0;
-                for line in body.universal_newlines() {
-                    if line.trim().is_empty() {
-                        summary_line += 1;
-                    } else {
+                for line in lines.by_ref() {
+                    summary_end += line.text_len();
+                    if !line.trim().is_empty() {
                         break;
                     }
+                }
+
+                // Find the last blank line
+                let mut blank_len = TextSize::default();
+                for line in lines {
+                    if !line.trim().is_empty() {
+                        break;
+                    }
+
+                    blank_len += line.text_len();
                 }
 
                 // Insert one blank line after the summary (replacing any existing lines).
                 diagnostic.set_fix(Edit::replacement(
                     checker.stylist.line_ending().to_string(),
-                    Location::new(docstring.expr.start().row() + summary_line + 1, 0),
-                    Location::new(
-                        docstring.expr.start().row() + summary_line + 1 + blanks_count,
-                        0,
-                    ),
+                    summary_end,
+                    summary_end + blank_len,
                 ));
             }
         }

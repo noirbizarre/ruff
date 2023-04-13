@@ -1,9 +1,7 @@
-use ruff_text_size::TextSize;
-use unicode_width::UnicodeWidthStr;
+use ruff_text_size::TextLen;
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
-use ruff_python_ast::str::leading_quote;
 
 use crate::checkers::ast::Checker;
 use crate::docstrings::definition::{DefinitionKind, Docstring};
@@ -41,7 +39,7 @@ pub fn capitalized(checker: &mut Checker, docstring: &Docstring) {
         return;
     }
 
-    let body = docstring.body;
+    let body = docstring.body();
 
     let Some(first_word) = body.split(' ').next() else {
         return
@@ -73,14 +71,11 @@ pub fn capitalized(checker: &mut Checker, docstring: &Docstring) {
     );
 
     if checker.patch(diagnostic.kind.rule()) {
-        if let Some(pattern) = leading_quote(docstring.contents) {
-            diagnostic.set_fix(Edit::replacement(
-                capitalized_word,
-                docstring.expr.start() + TextSize::try_from(pattern.width()).unwrap(),
-                docstring.expr.start()
-                    + TextSize::try_from(pattern.width() + first_word.width()).unwrap(),
-            ));
-        }
+        diagnostic.set_fix(Edit::replacement(
+            capitalized_word,
+            body.start(),
+            body.start() + first_word.text_len(),
+        ));
     }
 
     checker.diagnostics.push(diagnostic);

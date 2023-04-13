@@ -1,5 +1,10 @@
+use ruff_python_ast::newlines::{StrExt, UniversalNewlineIterator};
+use ruff_text_size::{TextLen, TextRange, TextSize};
+use std::fmt::{Debug, Formatter};
+use std::iter::FusedIterator;
 use strum_macros::EnumIter;
 
+use crate::docstrings::definition::Docstring;
 use crate::docstrings::styles::SectionStyle;
 use ruff_python_ast::whitespace;
 
@@ -116,17 +121,211 @@ impl SectionKind {
     }
 }
 
+pub(crate) struct SectionContexts<'a> {
+    contexts: Vec<SectionContextData>,
+    docstring: &'a Docstring<'a>,
+}
+
+impl<'a> SectionContexts<'a> {
+    /// Extract all `SectionContext` values from a docstring.
+    pub fn from_docstring(docstring: &'a Docstring<'a>, style: SectionStyle) -> Self {
+        let contents = docstring.body();
+
+        let mut contexts = Vec::new();
+        let mut last: Option<SectionContextData> = None;
+        let mut offset = TextSize::default();
+
+        for line in contents.universal_newlines() {
+            if offset == TextSize::default() {
+                // skip the first line
+            } else if let Some(section_kind) = suspected_as_section(line, style) {
+                let indent = whitespace::leading_space(line);
+                let section_name = whitespace::leading_words(line);
+
+                let section_range = TextRange::at(indent.text_len(), section_name.text_len());
+
+                if is_docstring_section(line, section_range, &contents[TextRange::up_to(offset)]) {
+                    if let Some(mut last) = last.take() {
+                        last.range = TextRange::new(last.range.start(), offset);
+                        contexts.push(last);
+                    }
+
+                    last = Some(SectionContextData {
+                        kind: section_kind,
+                        name_range: section_range + offset,
+                        range: TextRange::empty(offset),
+                    });
+                }
+            }
+
+            offset += line.text_len();
+        }
+
+        if let Some(mut last) = last.take() {
+            last.range = TextRange::new(last.range.start(), offset);
+            contexts.push(last);
+        }
+
+        Self {
+            docstring,
+            contexts,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.contexts.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.contexts.is_empty()
+    }
+
+    pub fn iter(&self) -> SectionContextsIter {
+        SectionContextsIter {
+            index: 0,
+            sections: self,
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a SectionContexts<'a> {
+    type Item = SectionContext<'a>;
+    type IntoIter = SectionContextsIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl Debug for SectionContexts<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(self.iter()).finish()
+    }
+}
+
+pub struct SectionContextsIter<'a> {
+    sections: &'a SectionContexts<'a>,
+    index: usize,
+}
+
+impl<'a> Iterator for SectionContextsIter<'a> {
+    type Item = SectionContext<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let index = self.index;
+        if index < self.sections.contexts.len() {
+            self.index += 1;
+            Some(SectionContext {
+                sections: self.sections,
+                index,
+            })
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.sections.contexts.len() - self.index;
+        (len, Some(len))
+    }
+}
+
+impl FusedIterator for SectionContextsIter<'_> {}
+impl ExactSizeIterator for SectionContextsIter<'_> {}
+
+struct SectionContextData {
+    kind: SectionKind,
+    name_range: TextRange,
+    range: TextRange,
+}
+
 #[derive(Debug)]
-pub(crate) struct SectionContext<'a> {
+pub struct SectionContext<'a> {
+    sections: &'a SectionContexts<'a>,
+    index: usize,
+}
+
+impl<'a> SectionContext<'a> {
+    pub fn is_last(&self) -> bool {
+        self.index == self.sections.contexts.len() - 1
+    }
+
+    fn data(&self) -> &SectionContextData {
+        &self.sections.contexts[self.index]
+    }
+
     /// The "kind" of the section, e.g. "SectionKind::Args" or "SectionKind::Returns".
-    pub(crate) kind: SectionKind,
-    /// The name of the section as it appears in the docstring, e.g. "Args" or "Returns".
-    pub(crate) section_name: &'a str,
-    pub(crate) previous_line: &'a str,
-    pub(crate) line: &'a str,
-    pub(crate) following_lines: &'a [&'a str],
-    pub(crate) is_last_section: bool,
-    pub(crate) original_index: usize,
+    pub fn kind(&self) -> SectionKind {
+        self.data().kind
+    }
+
+    /// The name  of the section as it appears in the docstring, e.g. "Args" or "Returns".
+    pub fn section_name(&self) -> &'a str {
+        &self.sections.docstring.body().as_str()[self.data().name_range]
+    }
+
+    /// Range of this sections text relative to [`Docstring.body`].
+    fn relative_range(&self) -> TextRange {
+        self.data().range
+    }
+
+    /// Absolute range
+    pub fn range(&self) -> TextRange {
+        self.data().range + self.sections.docstring.body().start()
+    }
+
+    pub fn summary_after_section_name(&self) -> &'a str {
+        &self.sections.docstring.body().as_str()
+            [TextRange::new(self.data().name_range.end(), self.summary_line().text_len())]
+    }
+
+    pub fn section_name_range(&self) -> TextRange {
+        self.data().name_range + self.range().start()
+    }
+
+    pub fn header_range(&self) -> TextRange {
+        TextRange::at(self.range().start(), self.summary_line().text_len())
+    }
+
+    pub fn text(&self) -> &'a str {
+        &self.sections.docstring.body().as_str()[self.relative_range()]
+    }
+
+    pub fn summary_line(&self) -> &'a str {
+        let end = self
+            .text()
+            .find(['\n', '\r'])
+            .unwrap_or_else(|| self.text().len());
+        &self.text()[..end]
+    }
+
+    pub fn previous_line(&self) -> &'a str {
+        let previous = &self.sections.docstring.body().as_str()
+            [TextRange::up_to(self.relative_range().start())];
+        previous.universal_newlines().last().unwrap_or_default()
+    }
+
+    pub fn following_lines(&self) -> UniversalNewlineIterator<'a> {
+        let after = &self.sections.docstring.body().as_str()[self.following_relative_range()];
+        after.universal_newlines()
+    }
+
+    /// Returns the range to the following lines relative to [`Docstring.body`].
+    fn following_relative_range(&self) -> TextRange {
+        let end = self
+            .sections
+            .contexts
+            .get(self.index + 1)
+            .map(|data| data.range.start())
+            .unwrap_or_else(|| self.sections.docstring.body().text_len());
+
+        TextRange::new(self.relative_range().end(), end)
+    }
+
+    /// Returns the absolute range to the following lines.
+    pub fn following_range(&self) -> TextRange {
+        self.following_relative_range() + self.range().start()
+    }
 }
 
 fn suspected_as_section(line: &str, style: SectionStyle) -> Option<SectionKind> {
@@ -139,20 +338,15 @@ fn suspected_as_section(line: &str, style: SectionStyle) -> Option<SectionKind> 
 }
 
 /// Check if the suspected context is really a section header.
-fn is_docstring_section(context: &SectionContext) -> bool {
-    let section_name_suffix = context
-        .line
-        .trim()
-        .strip_prefix(context.section_name)
-        .unwrap()
-        .trim();
+fn is_docstring_section(line: &str, section_range: TextRange, previous_lines: &str) -> bool {
+    let section_name_suffix = line[usize::from(section_range.end())..].trim();
     let this_looks_like_a_section_name =
         section_name_suffix == ":" || section_name_suffix.is_empty();
     if !this_looks_like_a_section_name {
         return false;
     }
 
-    let prev_line = context.previous_line.trim();
+    let prev_line = previous_lines.trim();
     let prev_line_ends_with_punctuation = [',', ';', '.', '-', '\\', '/', ']', '}', ')']
         .into_iter()
         .any(|char| prev_line.ends_with(char));
@@ -163,51 +357,4 @@ fn is_docstring_section(context: &SectionContext) -> bool {
     }
 
     true
-}
-
-/// Extract all `SectionContext` values from a docstring.
-pub(crate) fn section_contexts<'a>(
-    lines: &'a [&'a str],
-    style: SectionStyle,
-) -> Vec<SectionContext<'a>> {
-    let mut contexts = vec![];
-    for (kind, lineno) in lines
-        .iter()
-        .enumerate()
-        .skip(1)
-        .filter_map(|(lineno, line)| suspected_as_section(line, style).map(|kind| (kind, lineno)))
-    {
-        let context = SectionContext {
-            kind,
-            section_name: whitespace::leading_words(lines[lineno]),
-            previous_line: lines[lineno - 1],
-            line: lines[lineno],
-            following_lines: &lines[lineno + 1..],
-            original_index: lineno,
-            is_last_section: false,
-        };
-        if is_docstring_section(&context) {
-            contexts.push(context);
-        }
-    }
-
-    let mut truncated_contexts = Vec::with_capacity(contexts.len());
-    let mut end: Option<usize> = None;
-    for context in contexts.into_iter().rev() {
-        let next_end = context.original_index;
-        truncated_contexts.push(SectionContext {
-            kind: context.kind,
-            section_name: context.section_name,
-            previous_line: context.previous_line,
-            line: context.line,
-            following_lines: end.map_or(context.following_lines, |end| {
-                &lines[context.original_index + 1..end]
-            }),
-            original_index: context.original_index,
-            is_last_section: end.is_none(),
-        });
-        end = Some(next_end);
-    }
-    truncated_contexts.reverse();
-    truncated_contexts
 }

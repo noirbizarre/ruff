@@ -17,14 +17,14 @@ impl Violation for EmptyDocstring {
 
 /// D419
 pub fn not_empty(checker: &mut Checker, docstring: &Docstring) -> bool {
-    if !docstring.body.trim().is_empty() {
+    if !docstring.body().trim().is_empty() {
         return true;
     }
 
     if checker.settings.rules.enabled(Rule::EmptyDocstring) {
         checker
             .diagnostics
-            .push(Diagnostic::new(EmptyDocstring, docstring.expr.range()));
+            .push(Diagnostic::new(EmptyDocstring, docstring.range()));
     }
     false
 }
