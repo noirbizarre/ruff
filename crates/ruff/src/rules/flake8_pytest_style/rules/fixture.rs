@@ -8,7 +8,6 @@ use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::call_path::collect_call_path;
 use ruff_python_ast::helpers::collect_arg_names;
 use ruff_python_ast::source_code::Locator;
-use ruff_python_ast::visitor;
 use ruff_python_ast::visitor::Visitor;
 use ruff_python_ast::{helpers, visitor};
 

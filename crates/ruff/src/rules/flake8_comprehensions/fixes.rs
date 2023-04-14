@@ -1120,7 +1120,7 @@ pub fn fix_unnecessary_literal_within_dict_call(
     stylist: &Stylist,
     expr: &rustpython_parser::ast::Expr,
 ) -> Result<Edit> {
-    let module_text = locator.slice(expr);
+    let module_text = locator.slice(expr.range());
     let mut tree = match_module(module_text)?;
     let mut body = match_expr(&mut tree)?;
     let call = match_call(body)?;
@@ -1135,11 +1135,7 @@ pub fn fix_unnecessary_literal_within_dict_call(
     };
     tree.codegen(&mut state);
 
-    Ok(Edit::replacement(
-        state.to_string(),
-        expr.location,
-        expr.end_location.unwrap(),
-    ))
+    Ok(Edit::range_replacement(state.to_string(), expr.range()))
 }
 
 /// (C419) Convert `[i for i in a]` into `i for i in a`
@@ -1149,7 +1145,7 @@ pub fn fix_unnecessary_comprehension_any_all(
     expr: &rustpython_parser::ast::Expr,
 ) -> Result<Edit> {
     // Expr(ListComp) -> Expr(GeneratorExp)
-    let module_text = locator.slice(expr);
+    let module_text = locator.slice(expr.range());
     let mut tree = match_module(module_text)?;
     let body = match_expr(&mut tree)?;
     let call = match_call(body)?;
@@ -1179,9 +1175,5 @@ pub fn fix_unnecessary_comprehension_any_all(
     };
     tree.codegen(&mut state);
 
-    Ok(Edit::replacement(
-        state.to_string(),
-        expr.location,
-        expr.end_location.unwrap(),
-    ))
+    Ok(Edit::range_replacement(state.to_string(), expr.range()))
 }

@@ -3256,7 +3256,7 @@ where
                     }
 
                     if self.settings.rules.enabled(Rule::PrintfStringFormatting) {
-                        pyupgrade::rules::printf_string_formatting(self, expr, right);
+                        pyupgrade::rules::printf_string_formatting(self, expr, right, self.locator);
                     }
                     if self.settings.rules.enabled(Rule::BadStringFormatType) {
                         pylint::rules::bad_string_format_type(self, expr, right);

@@ -43,7 +43,7 @@ pub fn shebang_not_executable(
 #[cfg(not(target_family = "unix"))]
 pub fn shebang_not_executable(
     _filepath: &Path,
-    _lineno: usize,
+    _range: TextRange,
     _shebang: &ShebangDirective,
 ) -> Option<Diagnostic> {
     None

@@ -301,7 +301,12 @@ fn convertible(format_string: &CFormatString, params: &Expr) -> bool {
 }
 
 /// UP031
-pub(crate) fn printf_string_formatting(checker: &mut Checker, expr: &Expr, right: &Expr) {
+pub(crate) fn printf_string_formatting(
+    checker: &mut Checker,
+    expr: &Expr,
+    right: &Expr,
+    locator: &Locator,
+) {
     // Grab each string segment (in case there's an implicit concatenation).
     let mut strings: Vec<(TextSize, TextSize)> = vec![];
     let mut extension = None;

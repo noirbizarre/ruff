@@ -1,3 +1,4 @@
+use ruff_text_size::TextRange;
 use rustpython_parser::ast::{Constant, Expr, ExprContext, ExprKind};
 use rustpython_parser::{lexer, Mode, Tok};
 
@@ -93,16 +94,16 @@ fn elts_to_csv(elts: &[Expr], checker: &Checker) -> Option<String> {
 /// ```
 ///
 /// This method assumes that the first argument is a string.
-fn get_parametrize_name_range(checker: &Checker, decorator: &Expr, expr: &Expr) -> Range {
+fn get_parametrize_name_range(checker: &Checker, decorator: &Expr, expr: &Expr) -> TextRange {
     let mut locations = Vec::new();
     let mut implicit_concat = None;
 
     // The parenthesis are not part of the AST, so we need to tokenize the
     // decorator to find them.
     for (start, tok, end) in lexer::lex_located(
-        checker.locator.slice(decorator),
+        checker.locator.slice(decorator.range()),
         Mode::Module,
-        decorator.location,
+        decorator.start(),
     )
     .flatten()
     {
@@ -110,7 +111,7 @@ fn get_parametrize_name_range(checker: &Checker, decorator: &Expr, expr: &Expr) 
             Tok::Lpar => locations.push(start),
             Tok::Rpar => {
                 if let Some(start) = locations.pop() {
-                    implicit_concat = Some(Range::new(start, end));
+                    implicit_concat = Some(TextRange::new(start, end));
                 }
             }
             // Stop after the first argument.
@@ -122,7 +123,7 @@ fn get_parametrize_name_range(checker: &Checker, decorator: &Expr, expr: &Expr) 
     if let Some(range) = implicit_concat {
         range
     } else {
-        Range::from(expr)
+        expr.range()
     }
 }
 
@@ -166,8 +167,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                         checker.stylist,
                                     )
                                 ),
-                                name_range.start(),
-                                name_range.end(),
+                                name_range,
                             ));
                         }
                         checker.diagnostics.push(diagnostic);
@@ -197,8 +197,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                     }),
                                     checker.stylist,
                                 ),
-                                expr.start(),
-                                expr.end(),
+                                name_range,
                             ));
                         }
                         checker.diagnostics.push(diagnostic);
