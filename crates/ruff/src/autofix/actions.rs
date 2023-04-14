@@ -120,12 +120,6 @@ fn trailing_semicolon(stmt: &Stmt, locator: &Locator) -> Option<TextSize> {
     None
 }
 
-// How about a trivia struct that maps offset -> Trivia
-// where trivia is
-// * whitespace (indent)?
-// * newline
-// * comment
-
 /// Find the next valid break for a `Stmt` after a semicolon.
 fn next_stmt_break(semicolon: TextSize, locator: &Locator) -> TextSize {
     let start_location = semicolon + TextSize::from(1);
