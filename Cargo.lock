@@ -2164,6 +2164,7 @@ dependencies = [
 [[package]]
 name = "ruff_text_size"
 version = "0.0.0"
+source = "git+https://github.com/charliermarsh/RustPython.git?rev=834a2c356bbb31c33af900d9d02ce0228a0f6145#834a2c356bbb31c33af900d9d02ce0228a0f6145"
 dependencies = [
  "schemars",
  "serde",
@@ -2234,6 +2235,7 @@ dependencies = [
 [[package]]
 name = "rustpython-ast"
 version = "0.2.0"
+source = "git+https://github.com/charliermarsh/RustPython.git?rev=834a2c356bbb31c33af900d9d02ce0228a0f6145#834a2c356bbb31c33af900d9d02ce0228a0f6145"
 dependencies = [
  "num-bigint",
  "ruff_text_size",
@@ -2242,6 +2244,7 @@ dependencies = [
 [[package]]
 name = "rustpython-common"
 version = "0.2.0"
+source = "git+https://github.com/charliermarsh/RustPython.git?rev=834a2c356bbb31c33af900d9d02ce0228a0f6145#834a2c356bbb31c33af900d9d02ce0228a0f6145"
 dependencies = [
  "ascii",
  "bitflags",
@@ -2267,6 +2270,7 @@ dependencies = [
 [[package]]
 name = "rustpython-compiler-core"
 version = "0.2.0"
+source = "git+https://github.com/charliermarsh/RustPython.git?rev=834a2c356bbb31c33af900d9d02ce0228a0f6145#834a2c356bbb31c33af900d9d02ce0228a0f6145"
 dependencies = [
  "bitflags",
  "bstr 0.2.17",
@@ -2281,6 +2285,7 @@ dependencies = [
 [[package]]
 name = "rustpython-parser"
 version = "0.2.0"
+source = "git+https://github.com/charliermarsh/RustPython.git?rev=834a2c356bbb31c33af900d9d02ce0228a0f6145#834a2c356bbb31c33af900d9d02ce0228a0f6145"
 dependencies = [
  "ahash",
  "anyhow",
