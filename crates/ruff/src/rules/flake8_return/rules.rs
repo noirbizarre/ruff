@@ -334,20 +334,24 @@ fn has_refs_before_next_assign(
 
     if let Some(refs) = stack.refs.get(&id) {
         for location in refs {
-            if !locator.contains_line_break(TextRange::new(*location, return_location)) {
+            if *location <= return_location
+                && !locator.contains_line_break(TextRange::new(*location, return_location))
+            {
                 continue;
             }
 
-            let location_on_new_row =
-                locator.contains_line_break(TextRange::new(*before_assign, *location));
+            if before_assign <= location {
+                let location_on_new_row =
+                    locator.contains_line_break(TextRange::new(*before_assign, *location));
 
-            if location_on_new_row {
-                if let Some(after_assign) = after_assign {
-                    if location <= after_assign {
+                if location_on_new_row {
+                    if let Some(after_assign) = after_assign {
+                        if location <= after_assign {
+                            return true;
+                        }
+                    } else {
                         return true;
                     }
-                } else {
-                    return true;
                 }
             }
         }
@@ -359,14 +363,16 @@ fn has_refs_or_assigns_within_try_or_loop(id: &str, stack: &Stack, locator: &Loc
     if let Some(refs) = stack.refs.get(&id) {
         for location in refs {
             for (try_location, try_end_location) in &stack.tries {
-                if locator.contains_line_break(TextRange::new(*try_location, *location))
+                if try_location <= location
+                    && locator.contains_line_break(TextRange::new(*try_location, *location))
                     && location <= try_end_location
                 {
                     return true;
                 }
             }
             for (loop_location, loop_end_location) in &stack.loops {
-                if locator.contains_line_break(TextRange::new(*loop_location, *location))
+                if loop_location <= location
+                    && locator.contains_line_break(TextRange::new(*loop_location, *location))
                     && location <= loop_end_location
                 {
                     return true;
@@ -384,7 +390,8 @@ fn has_refs_or_assigns_within_try_or_loop(id: &str, stack: &Stack, locator: &Loc
                 }
             }
             for (loop_location, loop_end_location) in &stack.loops {
-                if locator.contains_line_break(TextRange::new(*loop_location, *location))
+                if loop_location <= location
+                    && locator.contains_line_break(TextRange::new(*loop_location, *location))
                     && location <= loop_end_location
                 {
                     return true;
