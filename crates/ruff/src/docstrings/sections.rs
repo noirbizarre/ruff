@@ -159,7 +159,7 @@ impl<'a> SectionContexts<'a> {
                         name_range: section_range + line.start(),
                         range: TextRange::empty(line.start()),
                         summary_full_end: line.full_end(),
-                    })
+                    });
                 }
             }
 
@@ -172,8 +172,8 @@ impl<'a> SectionContexts<'a> {
         }
 
         Self {
-            docstring,
             contexts,
+            docstring,
         }
     }
 
@@ -263,7 +263,7 @@ impl<'a> SectionContext<'a> {
         self.range().end() == self.docstring_body.end()
     }
 
-    /// The "kind" of the section, e.g. "SectionKind::Args" or "SectionKind::Returns".
+    /// The `kind` of the section, e.g. [`SectionKind::Args`] or [`SectionKind::Returns`].
     pub const fn kind(&self) -> SectionKind {
         self.data.kind
     }

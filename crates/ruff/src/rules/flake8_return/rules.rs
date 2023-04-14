@@ -327,9 +327,8 @@ fn has_refs_before_next_assign(
             if *location > return_location {
                 after_assign = Some(location);
                 break;
-            } else {
-                before_assign = location;
             }
+            before_assign = location;
         }
     }
 

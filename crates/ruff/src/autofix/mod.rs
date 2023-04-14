@@ -140,8 +140,8 @@ class A(object):
         );
         let diagnostics = create_diagnostics([Edit::replacement(
             "Bar".to_string(),
-            TextSize::from_u32(8),
-            TextSize::from_u32(14),
+            TextSize::new(8),
+            TextSize::new(14),
         )]);
         let (contents, fixed) = apply_fixes(diagnostics.iter(), &locator);
         assert_eq!(
@@ -164,10 +164,7 @@ class A(object):
 "#
             .trim(),
         );
-        let diagnostics = create_diagnostics([Edit::deletion(
-            TextSize::from_u32(7),
-            TextSize::from_u32(15),
-        )]);
+        let diagnostics = create_diagnostics([Edit::deletion(TextSize::new(7), TextSize::new(15))]);
         let (contents, fixed) = apply_fixes(diagnostics.iter(), &locator);
         assert_eq!(
             contents,
