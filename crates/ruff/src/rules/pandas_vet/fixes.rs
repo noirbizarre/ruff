@@ -1,4 +1,5 @@
-use rustpython_parser::ast::{Expr, ExprKind, Keyword, Location};
+use ruff_text_size::TextSize;
+use rustpython_parser::ast::{Expr, ExprKind, Keyword};
 
 use ruff_diagnostics::{Edit, Fix};
 use ruff_python_ast::source_code::Locator;
@@ -21,8 +22,8 @@ fn match_name(expr: &Expr) -> Option<&str> {
 pub(super) fn convert_inplace_argument_to_assignment(
     locator: &Locator,
     expr: &Expr,
-    violation_at: Location,
-    violation_end: Location,
+    violation_at: TextSize,
+    violation_end: TextSize,
     args: &[Expr],
     keywords: &[Keyword],
 ) -> Option<Fix> {

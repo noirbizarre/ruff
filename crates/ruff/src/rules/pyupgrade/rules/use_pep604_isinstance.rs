@@ -1,6 +1,7 @@
+use ruff_text_size::TextSize;
 use std::fmt;
 
-use rustpython_parser::ast::{Expr, ExprKind, Location, Operator};
+use rustpython_parser::ast::{Expr, ExprKind, Operator};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
@@ -55,8 +56,8 @@ fn union(elts: &[Expr]) -> Expr {
         elts[0].clone()
     } else {
         Expr::new(
-            Location::default(),
-            Location::default(),
+            TextSize::default(),
+            TextSize::default(),
             ExprKind::BinOp {
                 left: Box::new(union(&elts[..elts.len() - 1])),
                 op: Operator::BitOr,

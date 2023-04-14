@@ -98,11 +98,16 @@ impl LineIndex {
             Err(next_row) => {
                 // SAFETY: Safe because the index always contains an entry for the offset 0
                 let row = next_row - 1;
-                let line_start = self.line_starts()[row];
+                let mut line_start = self.line_starts()[row];
 
                 let column = if self.kind().is_ascii() {
                     usize::from(offset) - usize::from(line_start)
                 } else {
+                    // Don't count the BOM character as a column.
+                    if line_start == TextSize::from(0) && content.starts_with('\u{feff}') {
+                        line_start = line_start + '\u{feff}'.text_len()
+                    }
+
                     content[TextRange::new(line_start, offset)].chars().count()
                 };
 
@@ -308,7 +313,6 @@ mod tests {
     use crate::source_code::line_index::LineIndex;
     use crate::source_code::{OneIndexed, SourceLocation};
     use ruff_text_size::TextSize;
-    use rustpython_parser::ast::Location;
 
     #[test]
     fn ascii_index() {
@@ -358,7 +362,7 @@ mod tests {
             }
         );
 
-        let loc = index.source_location(Location::from(11), contents);
+        let loc = index.source_location(TextSize::from(11), contents);
         assert_eq!(
             loc,
             SourceLocation {

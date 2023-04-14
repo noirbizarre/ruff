@@ -2,6 +2,7 @@ use ruff_text_size::{TextLen, TextRange, TextSize};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
+use ruff_python_ast::newlines::Line;
 
 use crate::registry::Rule;
 use crate::settings::{flags, Settings};
@@ -74,9 +75,8 @@ impl AlwaysAutofixableViolation for BlankLineWithWhitespace {
 }
 
 /// W291, W293
-pub fn trailing_whitespace(
-    line_range: TextRange,
-    line: &str,
+pub(crate) fn trailing_whitespace(
+    line: &Line,
     settings: &Settings,
     autofix: flags::Autofix,
 ) -> Option<Diagnostic> {
@@ -87,9 +87,9 @@ pub fn trailing_whitespace(
         .map(|c| c.text_len())
         .sum();
     if whitespace_len > TextSize::from(0) {
-        let range = TextRange::new(line_range.end() - whitespace_len, line_range.end());
+        let range = TextRange::new(line.end() - whitespace_len, line.end());
 
-        if range == line_range {
+        if range == line.range() {
             if settings.rules.enabled(Rule::BlankLineWithWhitespace) {
                 let mut diagnostic = Diagnostic::new(BlankLineWithWhitespace, range);
                 if matches!(autofix, flags::Autofix::Enabled)

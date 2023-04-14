@@ -10,7 +10,7 @@ use log::{debug, error, warn};
 use rayon::prelude::*;
 use ruff_text_size::{TextRange, TextSize};
 
-use ruff::message::{Location, Message};
+use ruff::message::Message;
 use ruff::registry::Rule;
 use ruff::resolver::PyprojectDiscovery;
 use ruff::settings::{flags, AllSettings};

@@ -144,7 +144,7 @@ pub fn organize_imports(
     // Expand the span the entire range, including leading and trailing space.
     let range = TextRange::new(
         locator.line_start(range.start()),
-        locator.line_end(range.end()) + trailing_line_len,
+        locator.full_line_end(range.end()) + trailing_line_len,
     );
     let actual = locator.slice(range);
     if matches_ignoring_indentation(actual, &expected) {

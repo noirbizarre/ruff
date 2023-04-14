@@ -29,6 +29,7 @@ pub fn load_before_global_declaration(checker: &mut Checker, name: &str, expr: &
     };
     if let Some(stmt) = globals.get(name) {
         if expr.start() < stmt.start() {
+            #[allow(deprecated)]
             let location = checker.locator.compute_source_location(stmt.start());
             checker.diagnostics.push(Diagnostic::new(
                 LoadBeforeGlobalDeclaration {

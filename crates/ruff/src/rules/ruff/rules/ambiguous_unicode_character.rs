@@ -6,7 +6,6 @@ use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, DiagnosticKind, E
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::source_code::Locator;
 
-use crate::message::Location;
 use crate::registry::AsRule;
 use crate::rules::ruff::rules::Context;
 use crate::settings::{flags, Settings};
@@ -1685,8 +1684,8 @@ static CONFUSABLES: Lazy<FxHashMap<u32, u8>> = Lazy::new(|| {
 
 pub fn ambiguous_unicode_character(
     locator: &Locator,
-    start: Location,
-    end: Location,
+    start: TextSize,
+    end: TextSize,
     context: Context,
     settings: &Settings,
     autofix: flags::Autofix,

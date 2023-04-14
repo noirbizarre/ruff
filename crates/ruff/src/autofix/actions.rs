@@ -5,7 +5,7 @@ use libcst_native::{
     Codegen, CodegenState, ImportNames, ParenthesizableWhitespace, SmallStatement, Statement,
 };
 use ruff_text_size::{TextLen, TextSize};
-use rustpython_parser::ast::{ExcepthandlerKind, Expr, Keyword, Location, Stmt, StmtKind};
+use rustpython_parser::ast::{ExcepthandlerKind, Expr, Keyword, Stmt, StmtKind};
 use rustpython_parser::{lexer, Mode, Tok};
 
 use ruff_diagnostics::Edit;
@@ -104,21 +104,18 @@ fn is_lone_child(child: &Stmt, parent: &Stmt, deleted: &[&Stmt]) -> Result<bool>
 /// of a multi-statement line.
 fn trailing_semicolon(stmt: &Stmt, locator: &Locator) -> Option<TextSize> {
     let contents = locator.after(stmt.end());
-    let mut offset = stmt.end();
 
     for line in NewlineWithTrailingNewline::from(contents) {
         let trimmed = line.trim_start();
 
         if trimmed.starts_with(';') {
             let colon_offset = line.text_len() - trimmed.text_len();
-            return Some(offset + colon_offset);
+            return Some(stmt.end() + line.start() + colon_offset);
         }
 
         if !trimmed.starts_with('\\') {
             break;
         }
-
-        offset += line.text_len();
     }
     None
 }
@@ -134,25 +131,24 @@ fn next_stmt_break(semicolon: TextSize, locator: &Locator) -> TextSize {
     let start_location = semicolon + TextSize::from(1);
 
     let contents = &locator.contents()[usize::from(start_location)..];
-    let mut offset = start_location;
     for line in NewlineWithTrailingNewline::from(contents) {
         let trimmed = line.trim();
         // Skip past any continuations.
         if trimmed.starts_with('\\') {
-            offset += line.text_len();
             continue;
         }
 
-        return if trimmed.is_empty() {
-            // If the line is empty, then despite the previous statement ending in a
-            // semicolon, we know that it's not a multi-statement line.
-            offset
-        } else {
-            // Otherwise, find the start of the next statement. (Or, anything that isn't
-            // whitespace.)
-            let relative_offset = line.chars().position(|c| !c.is_whitespace()).unwrap();
-            offset + TextSize::try_from(relative_offset).unwrap()
-        };
+        return start_location
+            + if trimmed.is_empty() {
+                // If the line is empty, then despite the previous statement ending in a
+                // semicolon, we know that it's not a multi-statement line.
+                line.start()
+            } else {
+                // Otherwise, find the start of the next statement. (Or, anything that isn't
+                // whitespace.)
+                let relative_offset = line.chars().position(|c| !c.is_whitespace()).unwrap();
+                line.start() + TextSize::try_from(relative_offset).unwrap()
+            };
     }
 
     locator.line_end(start_location)
@@ -160,8 +156,7 @@ fn next_stmt_break(semicolon: TextSize, locator: &Locator) -> TextSize {
 
 /// Return `true` if a `Stmt` occurs at the end of a file.
 fn is_end_of_file(stmt: &Stmt, locator: &Locator) -> bool {
-    let contents = locator.after(stmt.end());
-    contents.is_empty()
+    locator.full_line_end(stmt.end()) == locator.contents().text_len()
 }
 
 /// Return the `Fix` to use when deleting a `Stmt`.
@@ -203,7 +198,7 @@ pub fn delete_stmt(
             Edit::deletion(stmt.start(), next)
         } else if helpers::has_leading_content(stmt, locator) {
             Edit::deletion(stmt.start(), stmt.end())
-        } else if helpers::preceded_by_continuation(stmt, indexer) {
+        } else if helpers::preceded_by_continuation(stmt, indexer, locator) {
             if is_end_of_file(stmt, locator) && locator.is_at_start_of_line(stmt.start()) {
                 // Special-case: a file can't end in a continuation.
                 Edit::replacement(stylist.line_ending().to_string(), stmt.start(), stmt.end())
@@ -211,7 +206,7 @@ pub fn delete_stmt(
                 Edit::deletion(stmt.start(), stmt.end())
             }
         } else {
-            let range = locator.lines_range(stmt.range());
+            let range = locator.full_lines_range(stmt.range());
             Edit::deletion(range.start(), range.end())
         })
     }
@@ -349,9 +344,9 @@ pub fn remove_unused_imports<'a>(
 /// For this behavior, set `remove_parentheses` to `true`.
 pub fn remove_argument(
     locator: &Locator,
-    call_at: Location,
-    expr_at: Location,
-    expr_end: Location,
+    call_at: TextSize,
+    expr_at: TextSize,
+    expr_end: TextSize,
     args: &[Expr],
     keywords: &[Keyword],
     remove_parentheses: bool,
@@ -523,8 +518,8 @@ pub fn get_or_import_symbol(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
+    use ruff_text_size::TextSize;
     use rustpython_parser as parser;
-    use rustpython_parser::ast::Location;
 
     use ruff_python_ast::source_code::Locator;
 
@@ -542,13 +537,13 @@ mod tests {
         let program = parser::parse_program(contents, "<filename>")?;
         let stmt = program.first().unwrap();
         let locator = Locator::new(contents);
-        assert_eq!(trailing_semicolon(stmt, &locator), Some(Location::from(5)));
+        assert_eq!(trailing_semicolon(stmt, &locator), Some(TextSize::from(5)));
 
         let contents = "x = 1 ; y = 1";
         let program = parser::parse_program(contents, "<filename>")?;
         let stmt = program.first().unwrap();
         let locator = Locator::new(contents);
-        assert_eq!(trailing_semicolon(stmt, &locator), Some(Location::from(6)));
+        assert_eq!(trailing_semicolon(stmt, &locator), Some(TextSize::from(6)));
 
         let contents = r#"
 x = 1 \
@@ -558,7 +553,7 @@ x = 1 \
         let program = parser::parse_program(contents, "<filename>")?;
         let stmt = program.first().unwrap();
         let locator = Locator::new(contents);
-        assert_eq!(trailing_semicolon(stmt, &locator), Some(Location::from(10)));
+        assert_eq!(trailing_semicolon(stmt, &locator), Some(TextSize::from(10)));
 
         Ok(())
     }
@@ -568,15 +563,15 @@ x = 1 \
         let contents = "x = 1; y = 1";
         let locator = Locator::new(contents);
         assert_eq!(
-            next_stmt_break(Location::from(4), &locator),
-            Location::from(5)
+            next_stmt_break(TextSize::from(4), &locator),
+            TextSize::from(5)
         );
 
         let contents = "x = 1 ; y = 1";
         let locator = Locator::new(contents);
         assert_eq!(
-            next_stmt_break(Location::from(5), &locator),
-            Location::from(6)
+            next_stmt_break(TextSize::from(5), &locator),
+            TextSize::from(6)
         );
 
         let contents = r#"
@@ -586,8 +581,8 @@ x = 1 \
         .trim();
         let locator = Locator::new(contents);
         assert_eq!(
-            next_stmt_break(Location::from(10), &locator),
-            Location::from(12)
+            next_stmt_break(TextSize::from(10), &locator),
+            TextSize::from(12)
         );
     }
 }

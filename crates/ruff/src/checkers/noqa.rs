@@ -154,21 +154,21 @@ pub fn check_noqa(
                                         .collect(),
                                 }),
                             },
-                            line.range,
+                            *range,
                         );
                         if autofix.into() && settings.rules.should_fix(diagnostic.kind.rule()) {
                             if valid_codes.is_empty() {
                                 diagnostic.set_fix(delete_noqa(
                                     *leading_spaces,
-                                    line.range,
+                                    *range,
                                     *trailing_spaces,
                                     locator,
                                 ));
                             } else {
                                 diagnostic.set_fix(Edit::replacement(
                                     format!("# noqa: {}", valid_codes.join(", ")),
-                                    line.range.start(),
-                                    line.range.end(),
+                                    range.start(),
+                                    range.end(),
                                 ));
                             }
                         }

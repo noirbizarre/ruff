@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use ruff_text_size::{TextRange, TextSize};
-use rustpython_parser::ast::{Constant, Expr, ExprKind, Location, Stmt, StmtKind};
+use rustpython_parser::ast::{Constant, Expr, ExprKind, Stmt, StmtKind};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Violation};
 use ruff_diagnostics::{Diagnostic, Edit};
@@ -325,8 +325,8 @@ fn has_refs_before_next_assign(
     stack: &Stack,
     locator: &Locator,
 ) -> bool {
-    let mut before_assign: &Location = &Location::default();
-    let mut after_assign: Option<&Location> = None;
+    let mut before_assign: &TextSize = &TextSize::default();
+    let mut after_assign: Option<&TextSize> = None;
     if let Some(assigns) = stack.assigns.get(&id) {
         for location in assigns.iter().sorted() {
             if *location > return_location {

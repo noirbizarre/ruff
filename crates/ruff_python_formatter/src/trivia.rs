@@ -1,6 +1,5 @@
 use ruff_text_size::{TextRange, TextSize};
 use rustc_hash::FxHashMap;
-use rustpython_parser::ast::Location;
 use rustpython_parser::lexer::LexResult;
 use rustpython_parser::Tok;
 use std::ops::Add;
@@ -194,8 +193,8 @@ impl Trivia {
 pub fn extract_trivia_tokens(lxr: &[LexResult], text: &str) -> Vec<TriviaToken> {
     let mut tokens = vec![];
     let mut prev_end = TextSize::default();
-    let mut prev_tok: Option<(&Location, &Tok, &Location)> = None;
-    let mut prev_semantic_tok: Option<(&Location, &Tok, &Location)> = None;
+    let mut prev_tok: Option<(&TextSize, &Tok, &TextSize)> = None;
+    let mut prev_semantic_tok: Option<(&TextSize, &Tok, &TextSize)> = None;
     let mut parens = vec![];
 
     for (start, tok, end) in lxr.iter().flatten() {

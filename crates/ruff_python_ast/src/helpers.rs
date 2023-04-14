@@ -8,7 +8,7 @@ use ruff_text_size::{TextLen, TextRange, TextSize};
 use rustc_hash::{FxHashMap, FxHashSet};
 use rustpython_parser::ast::{
     Arguments, Cmpop, Constant, Excepthandler, ExcepthandlerKind, Expr, ExprKind, Keyword,
-    KeywordData, Located, Location, MatchCase, Pattern, PatternKind, Stmt, StmtKind,
+    KeywordData, Located, MatchCase, Pattern, PatternKind, Stmt, StmtKind,
 };
 use rustpython_parser::{lexer, Mode, Tok};
 use smallvec::SmallVec;
@@ -832,16 +832,6 @@ pub fn extract_globals(body: &[Stmt]) -> FxHashMap<&str, &Stmt> {
     visitor.globals
 }
 
-/// Convert a location within a file (relative to `base`) to an absolute
-/// position.
-pub fn to_absolute(relative: Location, base: Location) -> Location {
-    base + relative
-}
-
-pub fn to_relative(absolute: Location, base: Location) -> Location {
-    absolute - base
-}
-
 /// Return `true` if a [`Located`] has leading content.
 pub fn has_leading_content<T>(located: &Located<T>, locator: &Locator) -> bool {
     let line_start = locator.line_start(located.start());
@@ -888,7 +878,7 @@ pub fn trailing_comment_start_offset<T>(
 
 /// Return the number of trailing empty lines following a statement.
 pub fn count_trailing_lines_text_len(stmt: &Stmt, locator: &Locator) -> TextSize {
-    let line_end = locator.line_end(stmt.end());
+    let line_end = locator.full_line_end(stmt.end());
     let rest = &locator.contents()[usize::from(line_end)..];
     rest.universal_newlines()
         .take_while(|line| line.trim().is_empty())
@@ -897,7 +887,7 @@ pub fn count_trailing_lines_text_len(stmt: &Stmt, locator: &Locator) -> TextSize
 }
 
 /// Return the range of the first parenthesis pair after a given [`Location`].
-pub fn match_parens(start: Location, locator: &Locator) -> Option<TextRange> {
+pub fn match_parens(start: TextSize, locator: &Locator) -> Option<TextRange> {
     let contents = &locator.contents()[usize::from(start)..];
 
     let mut fix_start = None;
@@ -1065,20 +1055,39 @@ pub fn elif_else_range(stmt: &Stmt, locator: &Locator) -> Option<TextRange> {
 
 /// Return `true` if a `Stmt` appears to be part of a multi-statement line, with
 /// other statements preceding it.
-pub fn preceded_by_continuation(_stmt: &Stmt, _indexer: &Indexer) -> bool {
-    // FIXME micha
+pub fn preceded_by_continuation(stmt: &Stmt, indexer: &Indexer, locator: &Locator) -> bool {
+    let line_start = locator.line_start(stmt.start());
 
-    // stmt.location.row() > 1
-    //     && indexer
-    //         .continuation_lines()
-    //         .contains(&(stmt.location.row() - 1))
-    false
+    // Compute start of preceding line
+    let newline_width = match locator.contents().as_bytes()[usize::from(line_start)] {
+        b'\n' => {
+            if locator
+                .contents()
+                .as_bytes()
+                .get(usize::from(line_start).saturating_sub(1))
+                == Some(&b'\r')
+            {
+                2
+            } else {
+                1
+            }
+        }
+        b'\r' => 1,
+        // No preceding line
+        _ => return false,
+    };
+
+    let preceding_line_start = locator.line_start(line_start - TextSize::from(newline_width));
+    indexer
+        .continuation_line_starts()
+        .binary_search(&preceding_line_start)
+        .is_ok()
 }
 
 /// Return `true` if a `Stmt` appears to be part of a multi-statement line, with
 /// other statements preceding it.
 pub fn preceded_by_multi_statement_line(stmt: &Stmt, locator: &Locator, indexer: &Indexer) -> bool {
-    has_leading_content(stmt, locator) || preceded_by_continuation(stmt, indexer)
+    has_leading_content(stmt, locator) || preceded_by_continuation(stmt, indexer, locator)
 }
 
 /// Return `true` if a `Stmt` appears to be part of a multi-statement line, with

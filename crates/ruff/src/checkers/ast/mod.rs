@@ -4143,6 +4143,7 @@ impl<'a> Checker<'a> {
                 );
                 if binding.kind.is_loop_var() && existing_is_import {
                     if self.settings.rules.enabled(Rule::ImportShadowedByLoopVar) {
+                        #[allow(deprecated)]
                         let line = self.locator.compute_line_index(existing.range.start());
 
                         self.diagnostics.push(Diagnostic::new(
@@ -4164,6 +4165,7 @@ impl<'a> Checker<'a> {
                             ))
                     {
                         if self.settings.rules.enabled(Rule::RedefinedWhileUnused) {
+                            #[allow(deprecated)]
                             let line = self.locator.compute_line_index(existing.range.start());
 
                             let mut diagnostic = Diagnostic::new(
@@ -5032,6 +5034,7 @@ impl<'a> Checker<'a> {
                         if let Some(indices) = self.ctx.shadowed_bindings.get(index) {
                             for index in indices {
                                 let rebound = &self.ctx.bindings[*index];
+                                #[allow(deprecated)]
                                 let line = self.locator.compute_line_index(binding.range.start());
 
                                 let mut diagnostic = Diagnostic::new(
@@ -5382,12 +5385,14 @@ impl<'a> Checker<'a> {
                     // Extract a `Docstring` from a `Definition`.
                     let expr = definition.docstring.unwrap();
                     let contents = self.locator.slice(expr.range());
+
                     let indentation = self.locator.slice(TextRange::new(
                         self.locator.line_start(expr.start()),
                         expr.start(),
                     ));
 
                     if pydocstyle::helpers::should_ignore_docstring(contents) {
+                        #[allow(deprecated)]
                         let location = self.locator.compute_source_location(expr.start());
                         warn_user!(
                         "Docstring at {}:{}:{} contains implicit string concatenation; ignoring...",

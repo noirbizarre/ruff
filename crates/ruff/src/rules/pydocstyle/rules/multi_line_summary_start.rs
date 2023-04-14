@@ -1,8 +1,8 @@
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
-use ruff_python_ast::newlines::{NewlineWithTrailingNewline, StrExt};
+use ruff_python_ast::newlines::{NewlineWithTrailingNewline, UniversalNewlineIterator};
 use ruff_python_ast::str::{is_triple_quote, leading_quote};
-use ruff_text_size::{TextLen, TextRange, TextSize};
+use ruff_text_size::{TextRange, TextSize};
 
 use crate::checkers::ast::Checker;
 use crate::docstrings::definition::{DefinitionKind, Docstring};
@@ -47,7 +47,7 @@ pub fn multi_line_summary_start(checker: &mut Checker, docstring: &Docstring) {
     {
         return;
     };
-    let mut content_lines = contents.universal_newlines();
+    let mut content_lines = UniversalNewlineIterator::with_offset(contents, docstring.start());
 
     let Some(first_line) = content_lines
         .next()
@@ -56,7 +56,7 @@ pub fn multi_line_summary_start(checker: &mut Checker, docstring: &Docstring) {
         return;
     };
 
-    if is_triple_quote(first_line) {
+    if is_triple_quote(&first_line) {
         if checker
             .settings
             .rules
@@ -64,19 +64,15 @@ pub fn multi_line_summary_start(checker: &mut Checker, docstring: &Docstring) {
         {
             let mut diagnostic = Diagnostic::new(MultiLineSummaryFirstLine, docstring.range());
             if checker.patch(diagnostic.kind.rule()) {
-                let mut offset = first_line.text_len();
-
                 // Delete until first non-whitespace char.
                 for line in content_lines {
                     if let Some(end_column) = line.find(|c: char| !c.is_whitespace()) {
-                        let range = TextRange::at(
-                            docstring.start() + first_line.text_len(),
-                            offset + TextSize::try_from(end_column).unwrap(),
-                        );
-                        diagnostic.set_fix(Edit::deletion(range.start(), range.end()));
+                        diagnostic.set_fix(Edit::deletion(
+                            first_line.end(),
+                            line.start() + TextSize::try_from(end_column).unwrap(),
+                        ));
                         break;
                     }
-                    offset += line.text_len();
                 }
             }
             checker.diagnostics.push(diagnostic);
@@ -127,11 +123,7 @@ pub fn multi_line_summary_start(checker: &mut Checker, docstring: &Docstring) {
                         first_line.strip_prefix(prefix).unwrap().trim_start()
                     );
 
-                    diagnostic.set_fix(Edit::replacement(
-                        repl,
-                        body.start(),
-                        docstring.start() + first_line.text_len() - prefix.text_len(),
-                    ));
+                    diagnostic.set_fix(Edit::replacement(repl, body.start(), first_line.end()));
                 }
             }
             checker.diagnostics.push(diagnostic);

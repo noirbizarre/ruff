@@ -1,8 +1,9 @@
-use ruff_text_size::{TextRange, TextSize};
-use unicode_width::UnicodeWidthStr;
+use ruff_text_size::{TextLen, TextRange};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
+use ruff_python_ast::newlines::Line;
 
 use crate::rules::pycodestyle::helpers::is_overlong;
 use crate::settings::Settings;
@@ -37,7 +38,7 @@ impl Violation for LineTooLong {
 }
 
 /// E501
-pub fn line_too_long(line_range: TextRange, line: &str, settings: &Settings) -> Option<Diagnostic> {
+pub(crate) fn line_too_long(line: &Line, settings: &Settings) -> Option<Diagnostic> {
     let line_width = line.width();
     let limit = settings.line_length;
     if is_overlong(
@@ -47,12 +48,21 @@ pub fn line_too_long(line_range: TextRange, line: &str, settings: &Settings) -> 
         settings.pycodestyle.ignore_overlong_task_comments,
         &settings.task_tags,
     ) {
+        let mut offset = line.end();
+        let mut width = line_width;
+
+        for c in line.chars() {
+            width -= c.width().unwrap_or(0);
+            offset -= c.text_len();
+
+            if width == limit {
+                break;
+            }
+        }
+
         Some(Diagnostic::new(
             LineTooLong(line_width, limit),
-            TextRange::new(
-                line_range.start() + TextSize::try_from(limit).unwrap(),
-                line_range.end(),
-            ),
+            TextRange::new(offset, line.end()),
         ))
     } else {
         None

@@ -155,7 +155,8 @@ pub(crate) fn whitespace_before_comment(
             let is_inline_comment = !line.trim().is_empty();
             if is_inline_comment {
                 if start < prev_end + TextSize::from(2)
-                    && !locator.contains_line_break(TextRange::new(start, prev_end))
+                    && !locator
+                        .contains_line_break(TextRange::new(start, prev_end + TextSize::from(2)))
                 {
                     diagnostics.push((
                         TextRange::new(prev_end, start),

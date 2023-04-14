@@ -1,6 +1,5 @@
 use bitflags::bitflags;
 use ruff_text_size::{TextLen, TextRange, TextSize};
-use rustpython_parser::ast::Location;
 use rustpython_parser::lexer::LexResult;
 use std::fmt::{Debug, Formatter};
 use std::iter::FusedIterator;
@@ -263,7 +262,7 @@ impl<'a> LogicalLine<'a> {
     }
 
     /// Returns the [`Location`] of the first token on the line or [`None`].
-    pub fn first_token_location(&self) -> Option<Location> {
+    pub fn first_token_location(&self) -> Option<TextSize> {
         self.tokens().first().map(|t| t.start())
     }
 
@@ -452,7 +451,7 @@ impl<'a> LogicalLineToken<'a> {
 
     /// Returns the token's start location
     #[inline]
-    pub fn start(&self) -> Location {
+    pub fn start(&self) -> TextSize {
         #[allow(unsafe_code)]
         unsafe {
             *self.tokens.starts.get_unchecked(self.position)
@@ -461,7 +460,7 @@ impl<'a> LogicalLineToken<'a> {
 
     /// Returns the token's end location
     #[inline]
-    pub fn end(&self) -> Location {
+    pub fn end(&self) -> TextSize {
         #[allow(unsafe_code)]
         unsafe {
             *self.tokens.ends.get_unchecked(self.position)
@@ -470,7 +469,7 @@ impl<'a> LogicalLineToken<'a> {
 
     /// Returns a tuple with the token's `(start, end)` locations
     #[inline]
-    pub fn range(&self) -> (Location, Location) {
+    pub fn range(&self) -> (TextSize, TextSize) {
         (self.start(), self.end())
     }
 }
@@ -565,7 +564,7 @@ impl LogicalLinesBuilder {
 
     // SAFETY: `LogicalLines::from_tokens` asserts that the file has less than `u32::MAX` tokens and each tokens is at least one character long
     #[allow(clippy::cast_possible_truncation)]
-    fn push_token(&mut self, start: Location, kind: TokenKind, end: Location) {
+    fn push_token(&mut self, start: TextSize, kind: TokenKind, end: TextSize) {
         let tokens_start = self.tokens.len();
 
         let line = self.current_line.get_or_insert_with(|| CurrentLine {
@@ -649,10 +648,10 @@ struct Tokens {
     kinds: Vec<TokenKind>,
 
     /// The start locations
-    starts: Vec<Location>,
+    starts: Vec<TextSize>,
 
     /// The end locations
-    ends: Vec<Location>,
+    ends: Vec<TextSize>,
 }
 
 impl Tokens {
@@ -671,7 +670,7 @@ impl Tokens {
     }
 
     /// Adds a new token with the given `kind` and `start`, `end` location.
-    fn push(&mut self, kind: TokenKind, start: Location, end: Location) {
+    fn push(&mut self, kind: TokenKind, start: TextSize, end: TextSize) {
         self.kinds.push(kind);
         self.starts.push(start);
         self.ends.push(end);

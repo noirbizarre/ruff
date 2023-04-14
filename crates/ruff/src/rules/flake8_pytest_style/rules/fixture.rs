@@ -1,6 +1,6 @@
 use anyhow::Result;
-use ruff_text_size::TextLen;
-use rustpython_parser::ast::{Arguments, Expr, ExprKind, Keyword, Location, Stmt, StmtKind};
+use ruff_text_size::{TextLen, TextSize};
+use rustpython_parser::ast::{Arguments, Expr, ExprKind, Keyword, Stmt, StmtKind};
 use std::ops::Add;
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Violation};
@@ -260,9 +260,9 @@ fn pytest_fixture_parentheses(
 
 pub fn fix_extraneous_scope_function(
     locator: &Locator,
-    stmt_at: Location,
-    expr_at: Location,
-    expr_end: Location,
+    stmt_at: TextSize,
+    expr_at: TextSize,
+    expr_end: TextSize,
     args: &[Expr],
     keywords: &[Keyword],
 ) -> Result<Edit> {
@@ -475,7 +475,7 @@ fn check_fixture_marks(checker: &mut Checker, decorators: &[Expr]) {
                 let mut diagnostic =
                     Diagnostic::new(PytestUnnecessaryAsyncioMarkOnFixture, expr.range());
                 if checker.patch(diagnostic.kind.rule()) {
-                    let range = checker.locator.lines_range(expr.range());
+                    let range = checker.locator.full_lines_range(expr.range());
                     diagnostic.set_fix(Edit::deletion(range.start(), range.end()));
                 }
                 checker.diagnostics.push(diagnostic);
@@ -491,7 +491,7 @@ fn check_fixture_marks(checker: &mut Checker, decorators: &[Expr]) {
                 let mut diagnostic =
                     Diagnostic::new(PytestErroneousUseFixturesOnFixture, expr.range());
                 if checker.patch(diagnostic.kind.rule()) {
-                    let line_range = checker.locator.lines_range(expr.range());
+                    let line_range = checker.locator.full_lines_range(expr.range());
                     diagnostic.set_fix(Edit::deletion(line_range.start(), line_range.end()));
                 }
                 checker.diagnostics.push(diagnostic);

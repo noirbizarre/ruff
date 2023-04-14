@@ -1,6 +1,6 @@
 //! Lint rules based on checking physical lines.
 
-use ruff_text_size::{TextLen, TextRange, TextSize};
+use ruff_text_size::TextSize;
 use std::path::Path;
 
 use ruff_diagnostics::Diagnostic;
@@ -59,19 +59,16 @@ pub fn check_physical_lines(
     let mut commented_lines_iter = indexer.comment_ranges().iter().peekable();
     let mut doc_lines_iter = doc_lines.iter().peekable();
     let string_lines = indexer.string_ranges();
-    let mut line_range = TextRange::default();
 
     for (index, line) in locator.contents().universal_newlines().enumerate() {
-        line_range = TextRange::new(line_range.end(), line_range.end() + line.text_len());
-
         while commented_lines_iter
-            .next_if(|comment_range| line_range.contains_range(**comment_range))
+            .next_if(|comment_range| line.range().contains_range(**comment_range))
             .is_some()
         {
             if enforce_unnecessary_coding_comment {
                 if index < 2 {
                     if let Some(diagnostic) =
-                        unnecessary_coding_comment(line_range, line, fix_unnecessary_coding_comment)
+                        unnecessary_coding_comment(&line, fix_unnecessary_coding_comment)
                     {
                         diagnostics.push(diagnostic);
                     }
@@ -79,11 +76,11 @@ pub fn check_physical_lines(
             }
 
             if enforce_blanket_type_ignore {
-                blanket_type_ignore(&mut diagnostics, line_range, line);
+                blanket_type_ignore(&mut diagnostics, &line);
             }
 
             if enforce_blanket_noqa {
-                blanket_noqa(&mut diagnostics, line_range, line);
+                blanket_noqa(&mut diagnostics, &line);
             }
 
             if enforce_shebang_missing
@@ -92,9 +89,9 @@ pub fn check_physical_lines(
                 || enforce_shebang_newline
                 || enforce_shebang_python
             {
-                let shebang = extract_shebang(line);
+                let shebang = extract_shebang(&line);
                 if enforce_shebang_not_executable {
-                    if let Some(diagnostic) = shebang_not_executable(path, line_range, &shebang) {
+                    if let Some(diagnostic) = shebang_not_executable(path, line.range(), &shebang) {
                         diagnostics.push(diagnostic);
                     }
                 }
@@ -105,18 +102,18 @@ pub fn check_physical_lines(
                 }
                 if enforce_shebang_whitespace {
                     if let Some(diagnostic) =
-                        shebang_whitespace(line_range, &shebang, fix_shebang_whitespace)
+                        shebang_whitespace(line.range(), &shebang, fix_shebang_whitespace)
                     {
                         diagnostics.push(diagnostic);
                     }
                 }
                 if enforce_shebang_newline {
-                    if let Some(diagnostic) = shebang_newline(line_range, &shebang) {
+                    if let Some(diagnostic) = shebang_newline(line.range(), &shebang, index == 0) {
                         diagnostics.push(diagnostic);
                     }
                 }
                 if enforce_shebang_python {
-                    if let Some(diagnostic) = shebang_python(line_range, &shebang) {
+                    if let Some(diagnostic) = shebang_python(line.range(), &shebang) {
                         diagnostics.push(diagnostic);
                     }
                 }
@@ -124,40 +121,40 @@ pub fn check_physical_lines(
         }
 
         while doc_lines_iter
-            .next_if(|doc_line_start| line_range.contains(**doc_line_start))
+            .next_if(|doc_line_start| line.range().contains(**doc_line_start))
             .is_some()
         {
             if enforce_doc_line_too_long {
-                if let Some(diagnostic) = doc_line_too_long(line_range, line, settings) {
+                if let Some(diagnostic) = doc_line_too_long(&line, settings) {
                     diagnostics.push(diagnostic);
                 }
             }
         }
 
         if enforce_mixed_spaces_and_tabs {
-            if let Some(diagnostic) = mixed_spaces_and_tabs(line_range, line) {
+            if let Some(diagnostic) = mixed_spaces_and_tabs(&line) {
                 diagnostics.push(diagnostic);
             }
         }
 
         if enforce_line_too_long {
-            if let Some(diagnostic) = line_too_long(line_range, line, settings) {
+            if let Some(diagnostic) = line_too_long(&line, settings) {
                 diagnostics.push(diagnostic);
             }
         }
 
         if enforce_bidirectional_unicode {
-            diagnostics.extend(pylint::rules::bidirectional_unicode(line_range, line));
+            diagnostics.extend(pylint::rules::bidirectional_unicode(&line));
         }
 
         if enforce_trailing_whitespace || enforce_blank_line_contains_whitespace {
-            if let Some(diagnostic) = trailing_whitespace(line_range, line, settings, autofix) {
+            if let Some(diagnostic) = trailing_whitespace(&line, settings, autofix) {
                 diagnostics.push(diagnostic);
             }
         }
 
         if enforce_tab_indentation {
-            if let Some(diagnostic) = tab_indentation(line_range, line, string_lines) {
+            if let Some(diagnostic) = tab_indentation(&line, string_lines) {
                 diagnostics.push(diagnostic);
             }
         }

@@ -3,7 +3,7 @@ use ruff_diagnostics::{Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::newlines::NewlineWithTrailingNewline;
 use ruff_python_ast::whitespace;
-use ruff_text_size::{TextLen, TextRange, TextSize};
+use ruff_text_size::{TextLen, TextRange};
 
 use crate::checkers::ast::Checker;
 use crate::docstrings::definition::Docstring;
@@ -52,7 +52,7 @@ pub fn indent(checker: &mut Checker, docstring: &Docstring) {
     let body = docstring.body();
 
     // Split the docstring into lines.
-    let lines: Vec<&str> = NewlineWithTrailingNewline::from(body.as_str()).collect();
+    let lines: Vec<_> = NewlineWithTrailingNewline::with_offset(&body, body.start()).collect();
     if lines.len() <= 1 {
         return;
     }
@@ -60,24 +60,22 @@ pub fn indent(checker: &mut Checker, docstring: &Docstring) {
     let mut has_seen_tab = docstring.indentation.contains('\t');
     let mut is_over_indented = true;
     let mut over_indented_lines = vec![];
-    let mut offset = TextSize::default();
 
     for i in 0..lines.len() {
         // First lines and continuations doesn't need any indentation.
         if i == 0 || lines[i - 1].ends_with('\\') {
             continue;
-        } else {
-            offset += lines[i - 1].text_len();
         }
 
+        let line = &lines[i];
         // Omit empty lines, except for the last line, which is non-empty by way of
         // containing the closing quotation marks.
-        let is_blank = lines[i].trim().is_empty();
+        let is_blank = line.trim().is_empty();
         if i < lines.len() - 1 && is_blank {
             continue;
         }
 
-        let line_indent = whitespace::leading_space(lines[i]);
+        let line_indent = whitespace::leading_space(&line);
 
         // We only report tab indentation once, so only check if we haven't seen a tab
         // yet.
@@ -90,12 +88,12 @@ pub fn indent(checker: &mut Checker, docstring: &Docstring) {
                 && line_indent.len() < docstring.indentation.len()
             {
                 let mut diagnostic =
-                    Diagnostic::new(UnderIndentation, TextRange::empty(body.start() + offset));
+                    Diagnostic::new(UnderIndentation, TextRange::empty(line.start()));
                 if checker.patch(diagnostic.kind.rule()) {
                     diagnostic.set_fix(Edit::replacement(
                         whitespace::clean(docstring.indentation),
-                        body.start() + offset,
-                        body.start() + offset + line_indent.text_len(),
+                        line.start(),
+                        line.start() + line_indent.text_len(),
                     ));
                 }
                 checker.diagnostics.push(diagnostic);
@@ -110,7 +108,7 @@ pub fn indent(checker: &mut Checker, docstring: &Docstring) {
         // the over-indentation status of every line.
         if i < lines.len() - 1 {
             if line_indent.len() > docstring.indentation.len() {
-                over_indented_lines.push((offset, line_indent.text_len()));
+                over_indented_lines.push((line.start(), line_indent.text_len()));
             } else {
                 is_over_indented = false;
             }
@@ -131,13 +129,12 @@ pub fn indent(checker: &mut Checker, docstring: &Docstring) {
             for (offset, indent_len) in over_indented_lines {
                 // We report over-indentation on every line. This isn't great, but
                 // enables autofix.
-                let mut diagnostic =
-                    Diagnostic::new(OverIndentation, TextRange::empty(body.start() + offset));
+                let mut diagnostic = Diagnostic::new(OverIndentation, TextRange::empty(offset));
                 if checker.patch(diagnostic.kind.rule()) {
                     diagnostic.set_fix(Edit::replacement(
                         whitespace::clean(docstring.indentation),
-                        body.start() + offset,
-                        body.start() + offset + indent_len,
+                        offset,
+                        offset + indent_len,
                     ));
                 }
                 checker.diagnostics.push(diagnostic);
@@ -145,17 +142,16 @@ pub fn indent(checker: &mut Checker, docstring: &Docstring) {
         }
 
         // If the last line is over-indented...
-        if !lines.is_empty() {
-            let i = lines.len() - 1;
-            let line_indent = whitespace::leading_space(lines[i]);
+        if let Some(last) = lines.last() {
+            let line_indent = whitespace::leading_space(&last);
             if line_indent.len() > docstring.indentation.len() {
                 let mut diagnostic =
-                    Diagnostic::new(OverIndentation, TextRange::empty(body.start() + offset));
+                    Diagnostic::new(OverIndentation, TextRange::empty(last.start()));
                 if checker.patch(diagnostic.kind.rule()) {
                     diagnostic.set_fix(Edit::replacement(
                         whitespace::clean(docstring.indentation),
-                        body.start() + offset,
-                        body.start() + offset + line_indent.text_len(),
+                        last.start(),
+                        last.start() + line_indent.text_len(),
                     ));
                 }
                 checker.diagnostics.push(diagnostic);

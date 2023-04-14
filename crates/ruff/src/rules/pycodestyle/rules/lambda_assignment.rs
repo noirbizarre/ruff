@@ -1,4 +1,5 @@
-use rustpython_parser::ast::{Arguments, Expr, ExprKind, Location, Stmt, StmtKind};
+use ruff_text_size::TextSize;
+use rustpython_parser::ast::{Arguments, Expr, ExprKind, Stmt, StmtKind};
 
 use ruff_diagnostics::{AutofixKind, Diagnostic, Edit, Violation};
 use ruff_macros::{derive_message_formats, violation};
@@ -88,11 +89,11 @@ pub fn lambda_assignment(checker: &mut Checker, target: &Expr, value: &Expr, stm
                     .enumerate()
                 {
                     if idx == 0 {
-                        indented.push_str(line);
+                        indented.push_str(&line);
                     } else {
                         indented.push_str(checker.stylist.line_ending().as_str());
                         indented.push_str(indentation);
-                        indented.push_str(line);
+                        indented.push_str(&line);
                     }
                 }
                 diagnostic.set_fix(Edit::replacement(indented, stmt.start(), stmt.end()));
@@ -105,15 +106,15 @@ pub fn lambda_assignment(checker: &mut Checker, target: &Expr, value: &Expr, stm
 
 fn function(name: &str, args: &Arguments, body: &Expr, stylist: &Stylist) -> String {
     let body = Stmt::new(
-        Location::default(),
-        Location::default(),
+        TextSize::default(),
+        TextSize::default(),
         StmtKind::Return {
             value: Some(Box::new(body.clone())),
         },
     );
     let func = Stmt::new(
-        Location::default(),
-        Location::default(),
+        TextSize::default(),
+        TextSize::default(),
         StmtKind::FunctionDef {
             name: name.to_string(),
             args: Box::new(args.clone()),

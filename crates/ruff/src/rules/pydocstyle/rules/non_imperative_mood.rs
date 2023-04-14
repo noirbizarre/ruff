@@ -49,7 +49,7 @@ pub fn non_imperative_mood(
 
     // Find first line, disregarding whitespace.
     let line = match body.trim().universal_newlines().next() {
-        Some(line) => line.trim(),
+        Some(line) => line.as_str().trim(),
         None => return,
     };
     // Find the first word on that line and normalize it to lower-case.

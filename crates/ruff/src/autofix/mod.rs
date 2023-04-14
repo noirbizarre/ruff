@@ -1,9 +1,8 @@
 use std::collections::BTreeSet;
 
 use itertools::Itertools;
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextRange, TextSize};
 use rustc_hash::FxHashMap;
-use rustpython_parser::ast::Location;
 
 use ruff_diagnostics::{Diagnostic, Edit, Fix};
 use ruff_python_ast::source_code::Locator;
@@ -33,7 +32,7 @@ fn apply_fixes<'a>(
     locator: &'a Locator<'a>,
 ) -> (String, FixTable) {
     let mut output = String::with_capacity(locator.len());
-    let mut last_pos: Option<Location> = None;
+    let mut last_pos: Option<TextSize> = None;
     let mut applied: BTreeSet<&Edit> = BTreeSet::default();
     let mut fixed = FxHashMap::default();
 
@@ -57,7 +56,7 @@ fn apply_fixes<'a>(
         // Best-effort approach: if this fix overlaps with a fix we've already applied,
         // skip it.
         if last_pos.map_or(false, |last_pos| {
-            fix.min_location()
+            fix.min_start()
                 .map_or(false, |fix_location| last_pos >= fix_location)
         }) {
             continue;
@@ -88,8 +87,8 @@ fn apply_fixes<'a>(
 
 /// Compare two fixes.
 fn cmp_fix(rule1: Rule, rule2: Rule, fix1: &Fix, fix2: &Fix) -> std::cmp::Ordering {
-    fix1.min_location()
-        .cmp(&fix2.min_location())
+    fix1.min_start()
+        .cmp(&fix2.min_start())
         .then_with(|| match (&rule1, &rule2) {
             // Apply `EndsInPeriod` fixes before `NewLineAfterLastParagraph` fixes.
             (Rule::EndsInPeriod, Rule::NewLineAfterLastParagraph) => std::cmp::Ordering::Less,

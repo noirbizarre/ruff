@@ -22,7 +22,6 @@ pub use grouped::GroupedEmitter;
 pub use json::JsonEmitter;
 pub use junit::JunitEmitter;
 pub use pylint::PylintEmitter;
-pub use rustpython_parser::ast::Location;
 pub use text::TextEmitter;
 
 use crate::jupyter::JupyterIndex;

@@ -414,7 +414,7 @@ fn fix_composite_condition(stmt: &Stmt, locator: &Locator, stylist: &Stylist) ->
         .unwrap()
         .to_string();
 
-    let range = locator.lines_range(stmt.range());
+    let range = locator.full_lines_range(stmt.range());
 
     Ok(Edit::replacement(contents, range.start(), range.end()))
 }

@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use anyhow::{anyhow, Result};
-use rustpython_parser::ast::{Constant, Expr, ExprKind, Keyword, Location};
+use ruff_text_size::TextSize;
+use rustpython_parser::ast::{Constant, Expr, ExprKind, Keyword};
 use rustpython_parser::{lexer, Mode, Tok};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
@@ -131,8 +132,8 @@ fn create_remove_param_fix(locator: &Locator, expr: &Expr, mode_param: &Expr) ->
     let content = locator.slice(expr.range());
     // Find the last comma before mode_param and create a deletion fix
     // starting from the comma and ending after mode_param.
-    let mut fix_start: Option<Location> = None;
-    let mut fix_end: Option<Location> = None;
+    let mut fix_start: Option<TextSize> = None;
+    let mut fix_end: Option<TextSize> = None;
     let mut is_first_arg: bool = false;
     let mut delete_first_arg: bool = false;
     for (start, tok, end) in lexer::lex_located(content, Mode::Module, expr.start()).flatten() {

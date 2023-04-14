@@ -1,5 +1,5 @@
-use ruff_text_size::TextLen;
-use rustpython_parser::ast::{Constant, Expr, ExprKind, Location, Stmt};
+use ruff_text_size::TextSize;
+use rustpython_parser::ast::{Constant, Expr, ExprKind, Stmt};
 
 use ruff_python_ast::newlines::StrExt;
 use ruff_python_ast::source_code::Locator;
@@ -28,24 +28,21 @@ pub fn result_exists(returns: &[(&Stmt, Option<&Expr>)]) -> bool {
 ///
 /// This method assumes that the statement is the last statement in its body; specifically, that
 /// the statement isn't followed by a semicolon, followed by a multi-line statement.
-pub fn end_of_last_statement(stmt: &Stmt, locator: &Locator) -> Location {
-    let contents = locator.after(stmt.end());
-
+pub fn end_of_last_statement(stmt: &Stmt, locator: &Locator) -> TextSize {
     // End-of-file, so just return the end of the statement.
-    if contents.trim().is_empty() {
-        return stmt.end();
+    if stmt.end() == locator.text_len() {
+        stmt.end()
     }
-
     // Otherwise, find the end of the last line that's "part of" the statement.
-    let mut offset = stmt.end();
-    for line in contents.universal_newlines() {
-        offset += line.text_len();
-        if line.ends_with('\\') {
-            continue;
+    else {
+        let contents = locator.after(stmt.end());
+
+        for line in contents.universal_newlines() {
+            if !line.ends_with('\\') {
+                return stmt.end() + line.end();
+            }
         }
 
-        return offset;
+        unreachable!("Expected to find end-of-statement")
     }
-
-    unreachable!("Expected to find end-of-statement")
 }

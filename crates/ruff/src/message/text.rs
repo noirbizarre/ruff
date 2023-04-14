@@ -1,9 +1,11 @@
+use crate::directives::Flags;
 use crate::fs::relativize_path;
 use crate::message::diff::Diff;
 use crate::message::{Emitter, EmitterContext, Message};
 use crate::registry::AsRule;
 use annotate_snippets::display_list::{DisplayList, FormatOptions};
 use annotate_snippets::snippet::{Annotation, AnnotationType, Slice, Snippet, SourceAnnotation};
+use bitflags::bitflags;
 use colored::Colorize;
 use ruff_diagnostics::DiagnosticKind;
 use ruff_python_ast::source_code::{OneIndexed, SourceLocation};
@@ -11,22 +13,37 @@ use ruff_text_size::TextRange;
 use std::fmt::{Display, Formatter};
 use std::io::Write;
 
+bitflags! {
+    #[derive(Default)]
+    struct EmitterFlags: u8 {
+        const SHOW_FIX_STATUS = 0b0000_0001;
+        const SHOW_FIX        = 0b0000_0010;
+        const SHOW_SOURCE     = 0b0000_0100;
+    }
+}
+
 #[derive(Default)]
 pub struct TextEmitter {
-    show_fix_status: bool,
-    show_fix: bool,
+    flags: EmitterFlags,
 }
 
 impl TextEmitter {
     #[must_use]
     pub fn with_show_fix_status(mut self, show_fix_status: bool) -> Self {
-        self.show_fix_status = show_fix_status;
+        self.flags
+            .set(EmitterFlags::SHOW_FIX_STATUS, show_fix_status);
         self
     }
 
     #[must_use]
     pub fn with_show_fix(mut self, show_fix: bool) -> Self {
-        self.show_fix = show_fix;
+        self.flags.set(EmitterFlags::SHOW_FIX, show_fix);
+        self
+    }
+
+    #[must_use]
+    pub fn with_show_source(mut self, show_source: bool) -> Self {
+        self.flags.set(EmitterFlags::SHOW_SOURCE, show_source);
         self
     }
 }
@@ -77,14 +94,15 @@ impl Emitter for TextEmitter {
                 sep = ":".cyan(),
                 code_and_body = RuleCodeAndBody {
                     message_kind: &message.kind,
-                    show_fix_status: self.show_fix_status
+                    show_fix_status: self.flags.contains(EmitterFlags::SHOW_FIX_STATUS)
                 }
             )?;
 
-            // FIXME micha gate code frame and diff with show source
-            writeln!(writer, "{}", MessageCodeFrame { message })?;
+            if self.flags.contains(EmitterFlags::SHOW_SOURCE) {
+                writeln!(writer, "{}", MessageCodeFrame { message })?;
+            }
 
-            if self.show_fix {
+            if self.flags.contains(EmitterFlags::SHOW_FIX) {
                 if let Some(diff) = Diff::from_message(message) {
                     writeln!(writer, "{diff}")?;
                 }
@@ -239,7 +257,7 @@ mod tests {
 
     #[test]
     fn default() {
-        let mut emitter = TextEmitter::default();
+        let mut emitter = TextEmitter::default().with_show_source(true);
         let content = capture_emitter_output(&mut emitter, &create_messages());
 
         assert_snapshot!(content);
@@ -247,7 +265,9 @@ mod tests {
 
     #[test]
     fn fix_status() {
-        let mut emitter = TextEmitter::default().with_show_fix_status(true);
+        let mut emitter = TextEmitter::default()
+            .with_show_fix_status(true)
+            .with_show_source(true);
         let content = capture_emitter_output(&mut emitter, &create_messages());
 
         assert_snapshot!(content);

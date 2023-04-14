@@ -1,5 +1,4 @@
-use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
+use ruff_text_size::{TextRange, TextSize};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
@@ -49,8 +48,8 @@ fn is_standalone_comment(line: &str) -> bool {
 /// ERA001
 pub fn commented_out_code(
     locator: &Locator,
-    start: Location,
-    end: Location,
+    start: TextSize,
+    end: TextSize,
     settings: &Settings,
     autofix: flags::Autofix,
 ) -> Option<Diagnostic> {
@@ -60,7 +59,7 @@ pub fn commented_out_code(
     if is_standalone_comment(line) && comment_contains_code(line, &settings.task_tags[..]) {
         let mut diagnostic = Diagnostic::new(CommentedOutCode, TextRange::new(start, end));
         if autofix.into() && settings.rules.should_fix(Rule::CommentedOutCode) {
-            let range = locator.lines_range(TextRange::new(start, end));
+            let range = locator.full_lines_range(TextRange::new(start, end));
             diagnostic.set_fix(Edit::deletion(range.start(), range.end()));
         }
         Some(diagnostic)

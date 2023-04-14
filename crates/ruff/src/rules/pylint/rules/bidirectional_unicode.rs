@@ -1,7 +1,6 @@
-use ruff_text_size::TextRange;
-
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
+use ruff_python_ast::newlines::Line;
 
 const BIDI_UNICODE: [char; 10] = [
     '\u{202A}', //{LEFT-TO-RIGHT EMBEDDING}
@@ -34,10 +33,10 @@ impl Violation for BidirectionalUnicode {
 }
 
 /// PLE2502
-pub fn bidirectional_unicode(range: TextRange, line: &str) -> Vec<Diagnostic> {
+pub(crate) fn bidirectional_unicode(line: &Line) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     if line.contains(BIDI_UNICODE) {
-        diagnostics.push(Diagnostic::new(BidirectionalUnicode, range));
+        diagnostics.push(Diagnostic::new(BidirectionalUnicode, line.full_range()));
     }
     diagnostics
 }

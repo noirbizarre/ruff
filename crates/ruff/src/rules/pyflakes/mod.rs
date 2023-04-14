@@ -259,6 +259,7 @@ mod tests {
             &tokens,
             directives::Flags::from_settings(&settings),
             &locator,
+            &indexer,
         );
         let LinterResult {
             data: (mut diagnostics, _imports),

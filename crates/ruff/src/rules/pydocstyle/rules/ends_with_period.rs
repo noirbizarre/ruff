@@ -1,9 +1,9 @@
-use ruff_text_size::{TextLen, TextSize};
+use ruff_text_size::TextLen;
 use strum::IntoEnumIterator;
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
-use ruff_python_ast::newlines::StrExt;
+use ruff_python_ast::newlines::{StrExt, UniversalNewlineIterator};
 
 use crate::checkers::ast::Checker;
 use crate::docstrings::definition::Docstring;
@@ -53,14 +53,8 @@ pub fn ends_with_period(checker: &mut Checker, docstring: &Docstring) {
     }
 
     if let Some(index) = logical_line(body.as_str()) {
-        let mut lines = body.universal_newlines();
-        let mut offset = TextSize::default();
-
-        for _ in 0..index {
-            offset += lines.next().unwrap().text_len();
-        }
-
-        let line = lines.next().unwrap();
+        let mut lines = UniversalNewlineIterator::with_offset(&body, body.start());
+        let line = lines.nth(index).unwrap();
         let trimmed = line.trim_end();
 
         if !trimmed.ends_with('.') {
@@ -72,7 +66,7 @@ pub fn ends_with_period(checker: &mut Checker, docstring: &Docstring) {
             {
                 diagnostic.set_fix(Edit::insertion(
                     ".".to_string(),
-                    body.start() + offset + trimmed.text_len(),
+                    line.start() + trimmed.text_len(),
                 ));
             }
             checker.diagnostics.push(diagnostic);

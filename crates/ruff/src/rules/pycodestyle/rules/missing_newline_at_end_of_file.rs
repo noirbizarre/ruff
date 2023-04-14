@@ -45,6 +45,7 @@ pub fn no_newline_at_end_of_file(
         // want to raise W292 anyway).
         // Both locations are at the end of the file (and thus the same).
         let range = TextRange::empty(locator.contents().text_len());
+
         let mut diagnostic = Diagnostic::new(MissingNewlineAtEndOfFile, range);
         if autofix {
             diagnostic.set_fix(Edit::insertion(

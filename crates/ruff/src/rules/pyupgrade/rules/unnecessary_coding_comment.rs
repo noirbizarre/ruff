@@ -1,9 +1,9 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
-use ruff_text_size::TextRange;
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
+use ruff_python_ast::newlines::Line;
 
 // TODO: document referencing [PEP 3120]: https://peps.python.org/pep-3120/
 #[violation]
@@ -25,16 +25,12 @@ static CODING_COMMENT_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^[ \t\f]*#.*?coding[:=][ \t]*utf-?8").unwrap());
 
 /// UP009
-pub fn unnecessary_coding_comment(
-    line_range: TextRange,
-    line: &str,
-    autofix: bool,
-) -> Option<Diagnostic> {
+pub(crate) fn unnecessary_coding_comment(line: &Line, autofix: bool) -> Option<Diagnostic> {
     // PEP3120 makes utf-8 the default encoding.
-    if CODING_COMMENT_REGEX.is_match(line) {
-        let mut diagnostic = Diagnostic::new(UTF8EncodingDeclaration, line_range);
+    if CODING_COMMENT_REGEX.is_match(line.as_str()) {
+        let mut diagnostic = Diagnostic::new(UTF8EncodingDeclaration, line.full_range());
         if autofix {
-            diagnostic.set_fix(Edit::deletion(line_range.start(), line_range.end()));
+            diagnostic.set_fix(Edit::deletion(line.start(), line.full_end()));
         }
         Some(diagnostic)
     } else {

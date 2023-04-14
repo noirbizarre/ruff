@@ -1,4 +1,5 @@
-use rustpython_parser::ast::{Constant, Expr, ExprKind, Location, Operator};
+use ruff_text_size::TextSize;
+use rustpython_parser::ast::{Constant, Expr, ExprKind, Operator};
 
 use ruff_diagnostics::{AutofixKind, Diagnostic, Edit, Violation};
 use ruff_macros::{derive_message_formats, violation};
@@ -28,14 +29,14 @@ impl Violation for NonPEP604Annotation {
 
 fn optional(expr: &Expr) -> Expr {
     Expr::new(
-        Location::default(),
-        Location::default(),
+        TextSize::default(),
+        TextSize::default(),
         ExprKind::BinOp {
             left: Box::new(expr.clone()),
             op: Operator::BitOr,
             right: Box::new(Expr::new(
-                Location::default(),
-                Location::default(),
+                TextSize::default(),
+                TextSize::default(),
                 ExprKind::Constant {
                     value: Constant::None,
                     kind: None,
@@ -50,8 +51,8 @@ fn union(elts: &[Expr]) -> Expr {
         elts[0].clone()
     } else {
         Expr::new(
-            Location::default(),
-            Location::default(),
+            TextSize::default(),
+            TextSize::default(),
             ExprKind::BinOp {
                 left: Box::new(union(&elts[..elts.len() - 1])),
                 op: Operator::BitOr,

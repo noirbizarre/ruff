@@ -4,7 +4,7 @@ use libcst_native::{
     SmallStatement, Statement, Suite,
 };
 use ruff_text_size::{TextRange, TextSize};
-use rustpython_parser::ast::{Expr, Location};
+use rustpython_parser::ast::Expr;
 use rustpython_parser::{lexer, Mode, Tok};
 
 use ruff_diagnostics::Edit;
@@ -117,7 +117,7 @@ pub fn remove_import_members(contents: &str, members: &[&str]) -> String {
     // Reconstruct the source code by skipping any names that are in `members`.
     let locator = Locator::new(contents);
     let mut output = String::with_capacity(contents.len());
-    let mut last_pos: Location = TextSize::default();
+    let mut last_pos = TextSize::default();
     let mut is_first = true;
     for index in 0..names.len() {
         if !removal_indices.contains(&index) {

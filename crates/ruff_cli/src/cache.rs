@@ -8,7 +8,7 @@ use anyhow::Result;
 use filetime::FileTime;
 use log::error;
 use path_absolutize::Absolutize;
-use ruff::message::{Location, Message};
+use ruff::message::Message;
 use ruff::settings::{flags, AllSettings, Settings};
 use ruff_cache::{CacheKey, CacheKeyHasher};
 use ruff_diagnostics::{DiagnosticKind, Fix};

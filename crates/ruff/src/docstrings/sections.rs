@@ -4,7 +4,7 @@ use std::fmt::{Debug, Formatter};
 use std::iter::FusedIterator;
 use strum_macros::EnumIter;
 
-use crate::docstrings::definition::Docstring;
+use crate::docstrings::definition::{Docstring, DocstringBody};
 use crate::docstrings::styles::SectionStyle;
 use ruff_python_ast::whitespace;
 
@@ -133,36 +133,41 @@ impl<'a> SectionContexts<'a> {
 
         let mut contexts = Vec::new();
         let mut last: Option<SectionContextData> = None;
-        let mut offset = TextSize::default();
+        let mut previous_line = None;
 
         for line in contents.universal_newlines() {
-            if offset == TextSize::default() {
+            if previous_line.is_none() {
                 // skip the first line
-            } else if let Some(section_kind) = suspected_as_section(line, style) {
-                let indent = whitespace::leading_space(line);
-                let section_name = whitespace::leading_words(line);
+                previous_line = Some(line.as_str());
+                continue;
+            }
+
+            if let Some(section_kind) = suspected_as_section(&line, style) {
+                let indent = whitespace::leading_space(&line);
+                let section_name = whitespace::leading_words(&line);
 
                 let section_range = TextRange::at(indent.text_len(), section_name.text_len());
 
-                if is_docstring_section(line, section_range, &contents[TextRange::up_to(offset)]) {
+                if is_docstring_section(&line, section_range, previous_line.unwrap_or_default()) {
                     if let Some(mut last) = last.take() {
-                        last.range = TextRange::new(last.range.start(), offset);
+                        last.range = TextRange::new(last.range.start(), line.start());
                         contexts.push(last);
                     }
 
                     last = Some(SectionContextData {
                         kind: section_kind,
-                        name_range: section_range + offset,
-                        range: TextRange::empty(offset),
-                    });
+                        name_range: section_range + line.start(),
+                        range: TextRange::empty(line.start()),
+                        summary_full_end: line.full_end(),
+                    })
                 }
             }
 
-            offset += line.text_len();
+            previous_line = Some(line.as_str());
         }
 
         if let Some(mut last) = last.take() {
-            last.range = TextRange::new(last.range.start(), offset);
+            last.range = TextRange::new(last.range.start(), contents.text_len());
             contexts.push(last);
         }
 
@@ -176,14 +181,10 @@ impl<'a> SectionContexts<'a> {
         self.contexts.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.contexts.is_empty()
-    }
-
     pub fn iter(&self) -> SectionContextsIter {
         SectionContextsIter {
-            index: 0,
-            sections: self,
+            docstring_body: self.docstring.body(),
+            inner: self.contexts.iter(),
         }
     }
 }
@@ -204,127 +205,170 @@ impl Debug for SectionContexts<'_> {
 }
 
 pub struct SectionContextsIter<'a> {
-    sections: &'a SectionContexts<'a>,
-    index: usize,
+    docstring_body: DocstringBody<'a>,
+    inner: std::slice::Iter<'a, SectionContextData>,
 }
 
 impl<'a> Iterator for SectionContextsIter<'a> {
     type Item = SectionContext<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let index = self.index;
-        if index < self.sections.contexts.len() {
-            self.index += 1;
-            Some(SectionContext {
-                sections: self.sections,
-                index,
-            })
-        } else {
-            None
-        }
+        let next = self.inner.next()?;
+
+        Some(SectionContext {
+            data: next,
+            docstring_body: self.docstring_body,
+        })
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.sections.contexts.len() - self.index;
-        (len, Some(len))
+        self.inner.size_hint()
+    }
+}
+
+impl<'a> DoubleEndedIterator for SectionContextsIter<'a> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let back = self.inner.next_back()?;
+        Some(SectionContext {
+            data: back,
+            docstring_body: self.docstring_body,
+        })
     }
 }
 
 impl FusedIterator for SectionContextsIter<'_> {}
 impl ExactSizeIterator for SectionContextsIter<'_> {}
 
+#[derive(Debug)]
 struct SectionContextData {
     kind: SectionKind,
+
+    /// Range of the section name, relative to the [`Docstring::body`]
     name_range: TextRange,
+
+    /// Range from the start to the end of the section, relative to the [`Docstring::body`]
     range: TextRange,
+
+    /// End of the summary, relative to the [`Docstring::body`]
+    summary_full_end: TextSize,
 }
 
-#[derive(Debug)]
 pub struct SectionContext<'a> {
-    sections: &'a SectionContexts<'a>,
-    index: usize,
+    data: &'a SectionContextData,
+    docstring_body: DocstringBody<'a>,
 }
 
 impl<'a> SectionContext<'a> {
     pub fn is_last(&self) -> bool {
-        self.index == self.sections.contexts.len() - 1
-    }
-
-    fn data(&self) -> &SectionContextData {
-        &self.sections.contexts[self.index]
+        self.range().end() == self.docstring_body.end()
     }
 
     /// The "kind" of the section, e.g. "SectionKind::Args" or "SectionKind::Returns".
-    pub fn kind(&self) -> SectionKind {
-        self.data().kind
+    pub const fn kind(&self) -> SectionKind {
+        self.data.kind
     }
 
     /// The name  of the section as it appears in the docstring, e.g. "Args" or "Returns".
     pub fn section_name(&self) -> &'a str {
-        &self.sections.docstring.body().as_str()[self.data().name_range]
+        &self.docstring_body.as_str()[self.data.name_range]
     }
 
-    /// Range of this sections text relative to [`Docstring.body`].
-    fn relative_range(&self) -> TextRange {
-        self.data().range
-    }
-
-    /// Absolute range
-    pub fn range(&self) -> TextRange {
-        self.data().range + self.sections.docstring.body().start()
-    }
-
+    /// Returns the rest of the summary line after the section name.
     pub fn summary_after_section_name(&self) -> &'a str {
-        &self.sections.docstring.body().as_str()
-            [TextRange::new(self.data().name_range.end(), self.summary_line().text_len())]
+        &self.summary_line()[usize::from(self.data.name_range.end() - self.data.range.start())..]
     }
 
+    fn offset(&self) -> TextSize {
+        self.docstring_body.start()
+    }
+
+    /// The absolute range of the section name
     pub fn section_name_range(&self) -> TextRange {
-        self.data().name_range + self.range().start()
+        self.data.name_range + self.offset()
     }
 
-    pub fn header_range(&self) -> TextRange {
+    /// Summary range relative to the start of the document. Includes the trailing newline.
+    pub fn summary_full_range(&self) -> TextRange {
+        self.summary_full_range_relative() + self.offset()
+    }
+
+    /// The absolute range of the summary line, excluding any trailing new line character.
+    pub fn summary_range(&self) -> TextRange {
         TextRange::at(self.range().start(), self.summary_line().text_len())
     }
 
-    pub fn text(&self) -> &'a str {
-        &self.sections.docstring.body().as_str()[self.relative_range()]
+    /// Range of the summary line relative to [`Docstring::body`], including the trailing new line character.
+    fn summary_full_range_relative(&self) -> TextRange {
+        TextRange::new(self.range_relative().start(), self.data.summary_full_end)
     }
 
+    /// Returns the range of this section relative to [`Docstring::body`]
+    const fn range_relative(&self) -> TextRange {
+        self.data.range
+    }
+
+    /// The absolute range of the full-section.
+    pub fn range(&self) -> TextRange {
+        self.range_relative() + self.offset()
+    }
+
+    /// Summary line without the trailing newline characters
     pub fn summary_line(&self) -> &'a str {
-        let end = self
-            .text()
-            .find(['\n', '\r'])
-            .unwrap_or_else(|| self.text().len());
-        &self.text()[..end]
+        let full_summary = &self.docstring_body.as_str()[self.summary_full_range_relative()];
+
+        let mut bytes = full_summary.bytes().rev();
+
+        let newline_width = match bytes.next() {
+            Some(b'\n') => {
+                if bytes.next() == Some(b'\r') {
+                    2
+                } else {
+                    1
+                }
+            }
+            Some(b'\r') => 1,
+            _ => 0,
+        };
+
+        &full_summary[..full_summary.len() - newline_width]
     }
 
-    pub fn previous_line(&self) -> &'a str {
-        let previous = &self.sections.docstring.body().as_str()
-            [TextRange::up_to(self.relative_range().start())];
-        previous.universal_newlines().last().unwrap_or_default()
+    /// Returns the text of the last line of the previous section or an empty string if it is the first section.
+    pub fn previous_line(&self) -> Option<&'a str> {
+        let previous =
+            &self.docstring_body.as_str()[TextRange::up_to(self.range_relative().start())];
+        previous.universal_newlines().last().map(|l| l.as_str())
     }
 
+    /// Returns the lines belonging to this section after the summary line.
     pub fn following_lines(&self) -> UniversalNewlineIterator<'a> {
-        let after = &self.sections.docstring.body().as_str()[self.following_relative_range()];
-        after.universal_newlines()
+        let lines = self.following_lines_str();
+        UniversalNewlineIterator::with_offset(lines, self.offset() + self.data.summary_full_end)
     }
 
-    /// Returns the range to the following lines relative to [`Docstring.body`].
-    fn following_relative_range(&self) -> TextRange {
-        let end = self
-            .sections
-            .contexts
-            .get(self.index + 1)
-            .map(|data| data.range.start())
-            .unwrap_or_else(|| self.sections.docstring.body().text_len());
-
-        TextRange::new(self.relative_range().end(), end)
+    fn following_lines_str(&self) -> &'a str {
+        &self.docstring_body.as_str()[self.following_range_relative()]
     }
 
-    /// Returns the absolute range to the following lines.
+    /// Returns the range to the following lines relative to [`Docstring::body`].
+    const fn following_range_relative(&self) -> TextRange {
+        TextRange::new(self.data.summary_full_end, self.range_relative().end())
+    }
+
+    /// Returns the absolute range of the following lines.
     pub fn following_range(&self) -> TextRange {
-        self.following_relative_range() + self.range().start()
+        self.following_range_relative() + self.offset()
+    }
+}
+
+impl Debug for SectionContext<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SectionContext")
+            .field("kind", &self.kind())
+            .field("section_name", &self.section_name())
+            .field("summary_line", &self.summary_line())
+            .field("following_lines", &&self.following_lines_str())
+            .finish()
     }
 }
 

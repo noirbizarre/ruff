@@ -18,12 +18,15 @@ impl Violation for TripleSingleQuotes {
 pub fn triple_quotes(checker: &mut Checker, docstring: &Docstring) {
     let body = docstring.body();
 
-    let leading_quote = docstring.leading_quote();
+    let leading_quote = docstring.leading_quote().to_ascii_lowercase();
 
     let starts_with_triple = if body.contains("\"\"\"") {
-        matches!(leading_quote, "'''" | "u'''" | "r'''" | "ur'''")
+        matches!(leading_quote.as_str(), "'''" | "u'''" | "r'''" | "ur'''")
     } else {
-        matches!(leading_quote, "\"\"\"" | "u\"\"\"" | "r\"\"\"" | "ur\"\"\"")
+        matches!(
+            leading_quote.as_str(),
+            "\"\"\"" | "u\"\"\"" | "r\"\"\"" | "ur\"\"\""
+        )
     };
     if !starts_with_triple {
         checker

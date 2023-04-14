@@ -1,7 +1,7 @@
 use anyhow::Result;
 use log::error;
 use ruff_text_size::{TextRange, TextSize};
-use rustpython_parser::ast::Location;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +25,7 @@ pub struct Diagnostic {
     pub kind: DiagnosticKind,
     pub range: TextRange,
     pub fix: Fix,
-    pub parent: Option<Location>,
+    pub parent: Option<TextSize>,
 }
 
 impl Diagnostic {
@@ -76,7 +76,7 @@ impl Diagnostic {
 
     /// Set the location of the diagnostic's parent node.
     #[inline]
-    pub fn set_parent(&mut self, parent: Location) {
+    pub fn set_parent(&mut self, parent: TextSize) {
         self.parent = Some(parent);
     }
 }

@@ -33,7 +33,11 @@ pub fn newline_after_last_paragraph(checker: &mut Checker, docstring: &Docstring
             line_count += 1;
         }
         if line_count > 1 {
-            if let Some(last_line) = contents.universal_newlines().last().map(str::trim) {
+            if let Some(last_line) = contents
+                .universal_newlines()
+                .last()
+                .map(|l| l.as_str().trim())
+            {
                 if last_line != "\"\"\"" && last_line != "'''" {
                     let mut diagnostic =
                         Diagnostic::new(NewLineAfterLastParagraph, docstring.expr.range());

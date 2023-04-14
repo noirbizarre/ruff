@@ -4,8 +4,7 @@ use std::fmt;
 use std::ops::Deref;
 
 use once_cell::unsync::OnceCell;
-use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
+use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser::lexer::LexResult;
 use rustpython_parser::Tok;
 
@@ -17,7 +16,7 @@ use crate::str::leading_quote;
 pub struct Stylist<'a> {
     locator: &'a Locator<'a>,
     indentation: OnceCell<Indentation>,
-    indent_end: Option<Location>,
+    indent_end: Option<TextSize>,
     quote: OnceCell<Quote>,
     quote_range: Option<TextRange>,
     line_ending: OnceCell<LineEnding>,

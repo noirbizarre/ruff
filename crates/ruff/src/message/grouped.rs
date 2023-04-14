@@ -14,12 +14,19 @@ use std::num::NonZeroUsize;
 #[derive(Default)]
 pub struct GroupedEmitter {
     show_fix_status: bool,
+    show_source: bool,
 }
 
 impl GroupedEmitter {
     #[must_use]
     pub fn with_show_fix_status(mut self, show_fix_status: bool) -> Self {
         self.show_fix_status = show_fix_status;
+        self
+    }
+
+    #[must_use]
+    pub fn with_show_source(mut self, show_source: bool) -> Self {
+        self.show_source = show_source;
         self
     }
 }
@@ -58,6 +65,7 @@ impl Emitter for GroupedEmitter {
                         jupyter_index: context.jupyter_index(message.filename()),
                         message,
                         show_fix_status: self.show_fix_status,
+                        show_source: self.show_source,
                         row_length,
                         column_length,
                     }
@@ -73,6 +81,7 @@ impl Emitter for GroupedEmitter {
 struct DisplayGroupedMessage<'a> {
     message: MessageWithLocation<'a>,
     show_fix_status: bool,
+    show_source: bool,
     row_length: NonZeroUsize,
     column_length: NonZeroUsize,
     jupyter_index: Option<&'a JupyterIndex>,
@@ -121,7 +130,7 @@ impl Display for DisplayGroupedMessage<'_> {
             },
         )?;
 
-        {
+        if self.show_source {
             use std::fmt::Write;
             let mut padded = PadAdapter::new(f);
             write!(padded, "{}", MessageCodeFrame { message })?;
@@ -131,16 +140,6 @@ impl Display for DisplayGroupedMessage<'_> {
 
         Ok(())
     }
-}
-
-fn num_digits(n: usize) -> usize {
-    std::iter::successors(Some(n), |n| {
-        let next = n / 10;
-
-        (next > 0).then_some(next)
-    })
-    .count()
-    .max(1)
 }
 
 /// Adapter that adds a '  ' at the start of every line without the need to copy the string.
@@ -182,7 +181,7 @@ mod tests {
 
     #[test]
     fn default() {
-        let mut emitter = GroupedEmitter::default();
+        let mut emitter = GroupedEmitter::default().with_show_source(true);
         let content = capture_emitter_output(&mut emitter, &create_messages());
 
         assert_snapshot!(content);
@@ -190,7 +189,9 @@ mod tests {
 
     #[test]
     fn fix_status() {
-        let mut emitter = GroupedEmitter::default().with_show_fix_status(true);
+        let mut emitter = GroupedEmitter::default()
+            .with_show_fix_status(true)
+            .with_show_source(true);
         let content = capture_emitter_output(&mut emitter, &create_messages());
 
         assert_snapshot!(content);

@@ -1,8 +1,8 @@
-use ruff_text_size::TextRange;
-
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
+use ruff_python_ast::newlines::Line;
 use ruff_python_ast::whitespace::leading_space;
+use ruff_text_size::{TextLen, TextRange};
 
 /// ## What it does
 /// Checks for mixed tabs and spaces in indentation.
@@ -35,11 +35,14 @@ impl Violation for MixedSpacesAndTabs {
 }
 
 /// E101
-pub fn mixed_spaces_and_tabs(line_range: TextRange, line: &str) -> Option<Diagnostic> {
-    let indent = leading_space(line);
+pub(crate) fn mixed_spaces_and_tabs(line: &Line) -> Option<Diagnostic> {
+    let indent = leading_space(line.as_str());
 
     if indent.contains(' ') && indent.contains('\t') {
-        Some(Diagnostic::new(MixedSpacesAndTabs, line_range))
+        Some(Diagnostic::new(
+            MixedSpacesAndTabs,
+            TextRange::at(line.start(), indent.text_len()),
+        ))
     } else {
         None
     }

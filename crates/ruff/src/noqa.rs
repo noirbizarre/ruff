@@ -38,44 +38,42 @@ pub enum Directive<'a> {
 pub fn extract_noqa_directive<'a>(range: TextRange, locator: &'a Locator) -> Directive<'a> {
     let text = &locator.contents()[range];
     match NOQA_LINE_REGEX.captures(text) {
-        Some(caps) => match caps.name("leading_spaces") {
-            Some(leading_spaces) => match caps.name("trailing_spaces") {
-                Some(trailing_spaces) => match caps.name("noqa") {
-                    Some(noqa) => match caps.name("codes") {
-                        Some(codes) => {
-                            let codes: Vec<&str> = SPLIT_COMMA_REGEX
-                                .split(codes.as_str().trim())
-                                .map(str::trim)
-                                .filter(|code| !code.is_empty())
-                                .collect();
+        Some(caps) => match (
+            caps.name("leading_spaces"),
+            caps.name("noqa"),
+            caps.name("codes"),
+            caps.name("trailing_spaces"),
+        ) {
+            (Some(leading_spaces), Some(noqa), Some(codes), Some(trailing_spaces)) => {
+                let codes: Vec<&str> = SPLIT_COMMA_REGEX
+                    .split(codes.as_str().trim())
+                    .map(str::trim)
+                    .filter(|code| !code.is_empty())
+                    .collect();
 
-                            let start = range.start() + TextSize::try_from(noqa.start()).unwrap();
-                            if codes.is_empty() {
-                                #[allow(deprecated)]
-                                let line = locator.compute_line_index(start);
-                                warn!("Expected rule codes on `noqa` directive: \"{line}\"");
-                            }
-                            Directive::Codes(
-                                leading_spaces.as_str().text_len(),
-                                TextRange::at(start, noqa.as_str().text_len()),
-                                codes,
-                                trailing_spaces.as_str().text_len(),
-                            )
-                        }
-                        None => Directive::All(
-                            leading_spaces.as_str().text_len(),
-                            TextRange::at(
-                                range.start() + TextSize::try_from(noqa.start()).unwrap(),
-                                noqa.as_str().text_len(),
-                            ),
-                            trailing_spaces.as_str().text_len(),
-                        ),
-                    },
-                    None => Directive::None,
-                },
-                None => Directive::None,
-            },
-            None => Directive::None,
+                let start = range.start() + TextSize::try_from(noqa.start()).unwrap();
+                if codes.is_empty() {
+                    #[allow(deprecated)]
+                    let line = locator.compute_line_index(start);
+                    warn!("Expected rule codes on `noqa` directive: \"{line}\"");
+                }
+                Directive::Codes(
+                    leading_spaces.as_str().text_len(),
+                    TextRange::at(start, noqa.as_str().text_len()),
+                    codes,
+                    trailing_spaces.as_str().text_len(),
+                )
+            }
+
+            (Some(leading_spaces), Some(noqa), None, Some(trailing_spaces)) => Directive::All(
+                leading_spaces.as_str().text_len(),
+                TextRange::at(
+                    range.start() + TextSize::try_from(noqa.start()).unwrap(),
+                    noqa.as_str().text_len(),
+                ),
+                trailing_spaces.as_str().text_len(),
+            ),
+            _ => Directive::None,
         },
         None => Directive::None,
     }
@@ -279,7 +277,8 @@ fn add_noqa_inner(
 
     for (offset, (rules, directive)) in matches_by_line.into_iter() {
         output.push_str(&locator.contents()[TextRange::up_to(prev_end)]);
-        let line = locator.line(offset);
+
+        let line = locator.full_line(offset);
 
         match directive {
             None | Some(Directive::None) => {
@@ -293,8 +292,6 @@ fn add_noqa_inner(
                 push_codes(&mut output, rules.iter().map(|rule| rule.noqa_code()));
                 output.push_str(&line_ending);
                 count += 1;
-
-                prev_end = offset + line.text_len();
             }
             Some(Directive::All(..)) => {
                 // Does not get inserted into the map.
@@ -366,7 +363,8 @@ impl<'a> NoqaDirectives<'a> {
         let mut directives = Vec::new();
 
         for comment_range in comment_ranges {
-            let directive = match extract_noqa_directive(*comment_range, locator) {
+            let line_range = locator.line_range(comment_range.start());
+            let directive = match extract_noqa_directive(line_range, locator) {
                 Directive::None => {
                     continue;
                 }
@@ -374,7 +372,6 @@ impl<'a> NoqaDirectives<'a> {
             };
 
             // noqa comments are guaranteed to be single line.
-            let line_range = locator.line_range(comment_range.start());
             directives.push(NoqaDirectiveLine {
                 range: line_range,
                 directive,
@@ -424,10 +421,15 @@ impl<'a> NoqaDirectives<'a> {
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct NoqaMapping {
     ranges: Vec<TextRange>,
-    targets: Vec<TextSize>,
 }
 
 impl NoqaMapping {
+    pub(crate) fn with_capacity(capacity: usize) -> Self {
+        Self {
+            ranges: Vec::with_capacity(capacity),
+        }
+    }
+
     /// Returns the re-mapped position or `position` if no mapping exists.
     pub fn resolve(&self, offset: TextSize) -> TextSize {
         let index = self.ranges.binary_search_by(|range| {
@@ -441,29 +443,37 @@ impl NoqaMapping {
         });
 
         if let Ok(index) = index {
-            self.targets[index]
+            self.ranges[index].end()
         } else {
             offset
         }
     }
 
-    pub fn push_mapping(&mut self, range: TextRange, offset: TextSize) {
-        debug_assert!(
-            self.ranges.last().copied().unwrap_or_default().end() <= range.start(),
-            "Ranges must be inserted in sorted order"
-        );
+    pub fn push_mapping(&mut self, range: TextRange) {
+        if let Some(last_range) = self.ranges.last_mut() {
+            // Strictly sorted insertion
+            if last_range.end() <= range.start() {
+                // OK
+            }
+            // Try merging with the last inserted range
+            else if let Some(intersected) = last_range.intersect(range) {
+                *last_range = intersected;
+                return;
+            } else {
+                panic!("Ranges must be inserted in sorted order")
+            }
+        }
 
         self.ranges.push(range);
-        self.targets.push(offset);
     }
 }
 
-impl FromIterator<(TextRange, TextSize)> for NoqaMapping {
-    fn from_iter<T: IntoIterator<Item = (TextRange, TextSize)>>(iter: T) -> Self {
+impl FromIterator<TextRange> for NoqaMapping {
+    fn from_iter<T: IntoIterator<Item = TextRange>>(iter: T) -> Self {
         let mut mappings = NoqaMapping::default();
 
-        for (range, target) in iter.into_iter() {
-            mappings.push_mapping(range, target);
+        for range in iter.into_iter() {
+            mappings.push_mapping(range);
         }
 
         mappings
@@ -507,7 +517,7 @@ mod tests {
             LineEnding::Lf,
         );
         assert_eq!(count, 0);
-        assert_eq!(output, format!("{contents}\n"));
+        assert_eq!(output, format!("{contents}"));
 
         let diagnostics = [Diagnostic::new(
             pyflakes::rules::UnusedVariable {
@@ -574,6 +584,6 @@ mod tests {
             LineEnding::Lf,
         );
         assert_eq!(count, 0);
-        assert_eq!(output, "x = 1  # noqa\n");
+        assert_eq!(output, "x = 1  # noqa");
     }
 }

@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use rustpython_parser::ast::Location;
 use rustpython_parser::lexer::LexResult;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -183,7 +182,8 @@ pub fn check(contents: &str, options: JsValue) -> Result<JsValue, JsValue> {
     let indexer = Indexer::from_tokens(&tokens, &locator);
 
     // Extract the `# noqa` and `# isort: skip` directives from the source.
-    let directives = directives::extract_directives(&tokens, directives::Flags::empty(), &locator);
+    let directives =
+        directives::extract_directives(&tokens, directives::Flags::empty(), &locator, &indexer);
 
     // Generate checks.
     let LinterResult {

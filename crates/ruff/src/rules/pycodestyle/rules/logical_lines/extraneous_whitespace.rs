@@ -1,5 +1,4 @@
 use ruff_text_size::TextSize;
-use rustpython_parser::ast::Location;
 
 use super::{LogicalLine, Whitespace};
 use ruff_diagnostics::DiagnosticKind;
@@ -102,7 +101,7 @@ impl Violation for WhitespaceBeforePunctuation {
 }
 
 /// E201, E202, E203
-pub(crate) fn extraneous_whitespace(line: &LogicalLine) -> Vec<(Location, DiagnosticKind)> {
+pub(crate) fn extraneous_whitespace(line: &LogicalLine) -> Vec<(TextSize, DiagnosticKind)> {
     let mut diagnostics = vec![];
     let mut last_token: Option<TokenKind> = None;
 

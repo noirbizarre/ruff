@@ -1,5 +1,6 @@
+use ruff_text_size::TextSize;
 use rustc_hash::{FxHashMap, FxHashSet};
-use rustpython_parser::ast::{Expr, ExprKind, Location, Stmt, StmtKind};
+use rustpython_parser::ast::{Expr, ExprKind, Stmt, StmtKind};
 
 use ruff_python_ast::visitor;
 use ruff_python_ast::visitor::Visitor;
@@ -10,11 +11,11 @@ pub struct Stack<'a> {
     pub yields: Vec<&'a Expr>,
     pub elses: Vec<&'a Stmt>,
     pub elifs: Vec<&'a Stmt>,
-    pub refs: FxHashMap<&'a str, Vec<Location>>,
+    pub refs: FxHashMap<&'a str, Vec<TextSize>>,
     pub non_locals: FxHashSet<&'a str>,
-    pub assigns: FxHashMap<&'a str, Vec<Location>>,
-    pub loops: Vec<(Location, Location)>,
-    pub tries: Vec<(Location, Location)>,
+    pub assigns: FxHashMap<&'a str, Vec<TextSize>>,
+    pub loops: Vec<(TextSize, TextSize)>,
+    pub tries: Vec<(TextSize, TextSize)>,
 }
 
 #[derive(Default)]

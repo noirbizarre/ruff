@@ -1,5 +1,6 @@
+use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser::ast::{
-    Cmpop, Comprehension, Constant, Expr, ExprContext, ExprKind, Location, Stmt, StmtKind, Unaryop,
+    Cmpop, Comprehension, Constant, Expr, ExprContext, ExprKind, Stmt, StmtKind, Unaryop,
 };
 use unicode_width::UnicodeWidthStr;
 
@@ -35,7 +36,7 @@ struct Loop<'a> {
     test: &'a Expr,
     target: &'a Expr,
     iter: &'a Expr,
-    terminal: Location,
+    terminal: TextSize,
 }
 
 /// Extract the returned boolean values a `StmtKind::For` with an `else` body.
@@ -211,7 +212,11 @@ pub fn convert_for_loop_to_any_all(checker: &mut Checker, stmt: &Stmt, sibling: 
                 );
 
                 // Don't flag if the resulting expression would exceed the maximum line length.
-                if checker.locator.line(stmt.start()).width() > checker.settings.line_length {
+                let line_start = checker.locator.line_start(stmt.start());
+                if checker.locator.contents()[TextRange::new(line_start, stmt.start())].width()
+                    + contents.width()
+                    > checker.settings.line_length
+                {
                     return;
                 }
 
@@ -288,7 +293,11 @@ pub fn convert_for_loop_to_any_all(checker: &mut Checker, stmt: &Stmt, sibling: 
                 );
 
                 // Don't flag if the resulting expression would exceed the maximum line length.
-                if checker.locator.line(stmt.start()).width() > checker.settings.line_length {
+                let line_start = checker.locator.line_start(stmt.start());
+                if checker.locator.contents()[TextRange::new(line_start, stmt.start())].width()
+                    + contents.width()
+                    > checker.settings.line_length
+                {
                     return;
                 }
 

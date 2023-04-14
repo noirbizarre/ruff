@@ -1,4 +1,5 @@
-use rustpython_parser::ast::{Constant, Expr, ExprContext, ExprKind, Location, Stmt, StmtKind};
+use ruff_text_size::TextSize;
+use rustpython_parser::ast::{Constant, Expr, ExprContext, ExprKind, Stmt, StmtKind};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
@@ -23,16 +24,16 @@ impl AlwaysAutofixableViolation for AssertFalse {
 
 fn assertion_error(msg: Option<&Expr>) -> Stmt {
     Stmt::new(
-        Location::default(),
-        Location::default(),
+        TextSize::default(),
+        TextSize::default(),
         StmtKind::Raise {
             exc: Some(Box::new(Expr::new(
-                Location::default(),
-                Location::default(),
+                TextSize::default(),
+                TextSize::default(),
                 ExprKind::Call {
                     func: Box::new(Expr::new(
-                        Location::default(),
-                        Location::default(),
+                        TextSize::default(),
+                        TextSize::default(),
                         ExprKind::Name {
                             id: "AssertionError".to_string(),
                             ctx: ExprContext::Load,

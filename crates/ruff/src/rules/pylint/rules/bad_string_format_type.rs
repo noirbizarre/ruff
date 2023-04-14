@@ -1,9 +1,9 @@
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextRange, TextSize};
 use std::str::FromStr;
 
 use rustc_hash::FxHashMap;
 use rustpython_common::cformat::{CFormatPart, CFormatSpec, CFormatStrOrBytes, CFormatString};
-use rustpython_parser::ast::{Constant, Expr, ExprKind, Location, Operator};
+use rustpython_parser::ast::{Constant, Expr, ExprKind, Operator};
 use rustpython_parser::{lexer, Mode, Tok};
 
 use ruff_diagnostics::{Diagnostic, Violation};
@@ -244,7 +244,7 @@ fn is_valid_dict(
 pub fn bad_string_format_type(checker: &mut Checker, expr: &Expr, right: &Expr) {
     // Grab each string segment (in case there's an implicit concatenation).
     let content = checker.locator.slice(expr.range());
-    let mut strings: Vec<(Location, Location)> = vec![];
+    let mut strings: Vec<(TextSize, TextSize)> = vec![];
     for (start, tok, end) in lexer::lex_located(content, Mode::Module, expr.start()).flatten() {
         if matches!(tok, Tok::String { .. }) {
             strings.push((start, end));

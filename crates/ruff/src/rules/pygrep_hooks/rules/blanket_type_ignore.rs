@@ -5,6 +5,7 @@ use ruff_text_size::{TextLen, TextRange, TextSize};
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
+use ruff_python_ast::newlines::Line;
 
 #[violation]
 pub struct BlanketTypeIgnore;
@@ -17,14 +18,14 @@ impl Violation for BlanketTypeIgnore {
 }
 
 /// PGH003
-pub fn blanket_type_ignore(diagnostics: &mut Vec<Diagnostic>, line_range: TextRange, line: &str) {
+pub(crate) fn blanket_type_ignore(diagnostics: &mut Vec<Diagnostic>, line: &Line) {
     for match_ in TYPE_IGNORE_PATTERN.find_iter(line) {
         if let Ok(codes) = parse_type_ignore_tag(line[match_.end()..].trim()) {
             if codes.is_empty() {
                 diagnostics.push(Diagnostic::new(
                     BlanketTypeIgnore,
                     TextRange::at(
-                        line_range.start() + TextSize::try_from(match_.start()).unwrap(),
+                        line.start() + TextSize::try_from(match_.start()).unwrap(),
                         match_.as_str().text_len(),
                     ),
                 ));

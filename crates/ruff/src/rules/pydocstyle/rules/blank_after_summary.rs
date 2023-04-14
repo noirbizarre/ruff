@@ -1,7 +1,6 @@
 use ruff_diagnostics::{AutofixKind, Diagnostic, Edit, Violation};
 use ruff_macros::{derive_message_formats, violation};
-use ruff_python_ast::newlines::StrExt;
-use ruff_text_size::{TextLen, TextSize};
+use ruff_python_ast::newlines::{StrExt, UniversalNewlineIterator};
 
 use crate::checkers::ast::Checker;
 use crate::docstrings::definition::Docstring;
@@ -58,36 +57,35 @@ pub fn blank_after_summary(checker: &mut Checker, docstring: &Docstring) {
             BlankLineAfterSummary {
                 num_lines: blanks_count,
             },
-            docstring.expr.range(),
+            docstring.range(),
         );
         if checker.patch(diagnostic.kind.rule()) {
             if blanks_count > 1 {
-                let mut lines = body.universal_newlines();
+                let mut lines = UniversalNewlineIterator::with_offset(&body, body.start());
                 let mut summary_end = body.start();
 
                 // Find the "summary" line (defined as the first non-blank line).
                 for line in lines.by_ref() {
-                    summary_end += line.text_len();
                     if !line.trim().is_empty() {
+                        summary_end = line.full_end();
                         break;
                     }
                 }
 
                 // Find the last blank line
-                let mut blank_len = TextSize::default();
+                let mut blank_end = summary_end;
                 for line in lines {
                     if !line.trim().is_empty() {
+                        blank_end = line.start();
                         break;
                     }
-
-                    blank_len += line.text_len();
                 }
 
                 // Insert one blank line after the summary (replacing any existing lines).
                 diagnostic.set_fix(Edit::replacement(
                     checker.stylist.line_ending().to_string(),
                     summary_end,
-                    summary_end + blank_len,
+                    blank_end,
                 ));
             }
         }

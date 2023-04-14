@@ -1,9 +1,8 @@
-use rustpython_parser::ast::Location;
-
 use super::{LogicalLine, Whitespace};
 use ruff_diagnostics::DiagnosticKind;
 use ruff_diagnostics::Violation;
 use ruff_macros::{derive_message_formats, violation};
+use ruff_text_size::TextSize;
 
 /// ## What it does
 /// Checks for extraneous whitespace after keywords.
@@ -109,7 +108,7 @@ impl Violation for TabBeforeKeyword {
 }
 
 /// E271, E272, E273, E274
-pub(crate) fn whitespace_around_keywords(line: &LogicalLine) -> Vec<(Location, DiagnosticKind)> {
+pub(crate) fn whitespace_around_keywords(line: &LogicalLine) -> Vec<(TextSize, DiagnosticKind)> {
     let mut diagnostics = vec![];
     let mut after_keyword = false;
 

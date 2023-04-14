@@ -274,6 +274,7 @@ pub fn add_noqa_to_path(path: &Path, package: Option<&Path>, settings: &Settings
         &tokens,
         directives::Flags::from_settings(settings),
         &locator,
+        &indexer,
     );
 
     // Generate diagnostics, ignoring any existing `noqa` directives.
@@ -341,6 +342,7 @@ pub fn lint_only(
         &tokens,
         directives::Flags::from_settings(settings),
         &locator,
+        &indexer,
     );
 
     // Generate diagnostics.
@@ -430,6 +432,7 @@ pub fn lint_fix<'a>(
             &tokens,
             directives::Flags::from_settings(settings),
             &locator,
+            &indexer,
         );
 
         // Generate diagnostics.

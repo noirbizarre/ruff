@@ -1,8 +1,7 @@
 use itertools::Itertools;
+use ruff_text_size::TextSize;
 use rustc_hash::{FxHashMap, FxHashSet};
-use rustpython_parser::ast::{
-    Excepthandler, ExcepthandlerKind, Expr, ExprContext, ExprKind, Location,
-};
+use rustpython_parser::ast::{Excepthandler, ExcepthandlerKind, Expr, ExprContext, ExprKind};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Violation};
 use ruff_diagnostics::{Diagnostic, Edit};
@@ -51,8 +50,8 @@ impl AlwaysAutofixableViolation for DuplicateHandlerException {
 
 fn type_pattern(elts: Vec<&Expr>) -> Expr {
     Expr::new(
-        Location::default(),
-        Location::default(),
+        TextSize::default(),
+        TextSize::default(),
         ExprKind::Tuple {
             elts: elts.into_iter().cloned().collect(),
             ctx: ExprContext::Load,

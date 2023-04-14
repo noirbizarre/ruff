@@ -34,6 +34,7 @@ pub fn test_path(path: impl AsRef<Path>, settings: &Settings) -> Result<Vec<Mess
         &tokens,
         directives::Flags::from_settings(settings),
         &locator,
+        &indexer,
     );
     let LinterResult {
         data: (diagnostics, _imports),
@@ -71,6 +72,7 @@ pub fn test_path(path: impl AsRef<Path>, settings: &Settings) -> Result<Vec<Mess
                 &tokens,
                 directives::Flags::from_settings(settings),
                 &locator,
+                &indexer,
             );
             let LinterResult {
                 data: (diagnostics, _imports),
@@ -92,9 +94,36 @@ pub fn test_path(path: impl AsRef<Path>, settings: &Settings) -> Result<Vec<Mess
                     iterations += 1;
                     contents = fixed_contents.to_string();
                 } else {
+                    let source_code =
+                        SourceFileBuilder::new(&path.file_name().unwrap().to_string_lossy())
+                            .source_text_string(contents)
+                            .finish();
+
+                    let messages: Vec<_> = diagnostics
+                        .into_iter()
+                        .map(|diagnostic| {
+                            // Not strictly necessary but adds some coverage for this code path
+                            let noqa = directives.noqa_line_for.resolve(diagnostic.start());
+
+                            Message::from_diagnostic(diagnostic, source_code.clone(), noqa)
+                        })
+                        .collect();
+
+                    let mut output: Vec<u8> = Vec::new();
+                    TextEmitter::default()
+                        .with_show_fix(true)
+                        .with_show_source(true)
+                        .emit(
+                            &mut output,
+                            &messages,
+                            &EmitterContext::new(&FxHashMap::default()),
+                        )
+                        .unwrap();
+
+                    let output_str = String::from_utf8(output).unwrap();
                     panic!(
                         "Failed to converge after {max_iterations} iterations. This likely \
-                         indicates a bug in the implementation of the fix."
+                         indicates a bug in the implementation of the fix. Last diagnostics:\n{output_str}"
                     );
                 }
             } else {
@@ -125,6 +154,7 @@ pub(crate) fn print_messages(messages: &[Message]) -> String {
     TextEmitter::default()
         .with_show_fix_status(true)
         .with_show_fix(true)
+        .with_show_source(true)
         .emit(
             &mut output,
             messages,

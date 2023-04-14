@@ -1,4 +1,5 @@
-use rustpython_parser::ast::{Constant, Expr, ExprContext, ExprKind, Location, Stmt, StmtKind};
+use ruff_text_size::TextSize;
+use rustpython_parser::ast::{Constant, Expr, ExprContext, ExprKind, Stmt, StmtKind};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
@@ -28,12 +29,12 @@ impl AlwaysAutofixableViolation for SetAttrWithConstant {
 
 fn assignment(obj: &Expr, name: &str, value: &Expr, stylist: &Stylist) -> String {
     let stmt = Stmt::new(
-        Location::default(),
-        Location::default(),
+        TextSize::default(),
+        TextSize::default(),
         StmtKind::Assign {
             targets: vec![Expr::new(
-                Location::default(),
-                Location::default(),
+                TextSize::default(),
+                TextSize::default(),
                 ExprKind::Attribute {
                     value: Box::new(obj.clone()),
                     attr: name.to_string(),

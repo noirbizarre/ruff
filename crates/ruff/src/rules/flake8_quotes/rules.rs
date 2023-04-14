@@ -1,5 +1,4 @@
-use ruff_text_size::TextRange;
-use rustpython_parser::ast::Location;
+use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser::lexer::LexResult;
 use rustpython_parser::Tok;
 
@@ -258,8 +257,8 @@ impl<'a> From<&'a str> for Trivia<'a> {
 /// Q003
 fn docstring(
     locator: &Locator,
-    start: Location,
-    end: Location,
+    start: TextSize,
+    end: TextSize,
     settings: &Settings,
     autofix: flags::Autofix,
 ) -> Option<Diagnostic> {
@@ -299,7 +298,7 @@ fn docstring(
 /// Q001, Q002
 fn strings(
     locator: &Locator,
-    sequence: &[(Location, Location)],
+    sequence: &[(TextSize, TextSize)],
     settings: &Settings,
     autofix: flags::Autofix,
 ) -> Vec<Diagnostic> {

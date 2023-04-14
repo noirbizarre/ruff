@@ -2,8 +2,9 @@
 
 use anyhow::Result;
 use libcst_native::{Codegen, CodegenState, ImportAlias, Name, NameOrAttribute};
+use ruff_text_size::TextSize;
 use rustc_hash::FxHashMap;
-use rustpython_parser::ast::{Location, Stmt, StmtKind, Suite};
+use rustpython_parser::ast::{Stmt, StmtKind, Suite};
 use rustpython_parser::{lexer, Mode, Tok};
 
 use ruff_diagnostics::Edit;
@@ -126,13 +127,13 @@ struct Insertion {
     /// The content to add before the insertion.
     prefix: &'static str,
     /// The location at which to insert.
-    location: Location,
+    location: TextSize,
     /// The content to add after the insertion.
     suffix: &'static str,
 }
 
 impl Insertion {
-    fn new(prefix: &'static str, location: Location, suffix: &'static str) -> Self {
+    fn new(prefix: &'static str, location: TextSize, suffix: &'static str) -> Self {
         Self {
             prefix,
             location,
@@ -142,7 +143,7 @@ impl Insertion {
 }
 
 /// Find the end of the last docstring.
-fn match_docstring_end(body: &[Stmt]) -> Option<Location> {
+fn match_docstring_end(body: &[Stmt]) -> Option<TextSize> {
     let mut iter = body.iter();
     let Some(mut stmt) = iter.next() else {
         return None;
@@ -217,7 +218,7 @@ fn top_of_file_insertion(body: &[Stmt], locator: &Locator, stylist: &Stylist) ->
         // Otherwise, advance to the next row.
         locator.line_end(location)
     } else {
-        Location::default()
+        TextSize::default()
     };
 
     // Skip over any comments and empty lines.
@@ -266,7 +267,7 @@ mod tests {
             .trim_start();
         assert_eq!(
             insert(contents)?,
-            Insertion::new("", TextSize::from(20), LineEnding::default().as_str())
+            Insertion::new("", TextSize::from(19), LineEnding::default().as_str())
         );
 
         let contents = r#"

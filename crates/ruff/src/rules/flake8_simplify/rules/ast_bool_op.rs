@@ -3,11 +3,9 @@ use std::iter;
 
 use itertools::Either::{Left, Right};
 use itertools::Itertools;
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextRange, TextSize};
 use rustc_hash::FxHashMap;
-use rustpython_parser::ast::{
-    Boolop, Cmpop, Constant, Expr, ExprContext, ExprKind, Location, Unaryop,
-};
+use rustpython_parser::ast::{Boolop, Cmpop, Constant, Expr, ExprContext, ExprKind, Unaryop};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, AutofixKind, Diagnostic, Edit, Violation};
 use ruff_macros::{derive_message_formats, violation};
@@ -507,7 +505,7 @@ pub fn is_short_circuit(
     ctx: &Context,
     expr: &Expr,
     expected_op: &Boolop,
-) -> Option<(Location, Location)> {
+) -> Option<(TextSize, TextSize)> {
     let ExprKind::BoolOp { op, values, } = &expr.node else {
         return None;
     };

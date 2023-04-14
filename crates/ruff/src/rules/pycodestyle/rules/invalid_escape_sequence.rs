@@ -1,7 +1,6 @@
 use anyhow::{bail, Result};
 use log::error;
-use ruff_text_size::{TextRange, TextSize};
-use rustpython_parser::ast::Location;
+use ruff_text_size::{TextLen, TextRange, TextSize};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
@@ -59,8 +58,8 @@ fn extract_quote(text: &str) -> Result<&str> {
 /// W605
 pub fn invalid_escape_sequence(
     locator: &Locator,
-    start: Location,
-    end: Location,
+    start: TextSize,
+    end: TextSize,
     autofix: bool,
 ) -> Vec<Diagnostic> {
     let mut diagnostics = vec![];
@@ -77,8 +76,6 @@ pub fn invalid_escape_sequence(
     let body = &text[(quote_pos + quote.len())..(text.len() - quote.len())];
 
     if !prefix.contains('r') {
-        let mut offset = usize::from(start) + quote_pos + quote.len();
-
         for line in body.universal_newlines() {
             let mut chars_iter = line.char_indices().peekable();
 
@@ -102,7 +99,10 @@ pub fn invalid_escape_sequence(
                     continue;
                 }
 
-                let location = TextSize::try_from(offset + i).unwrap();
+                let location = start
+                    + line.start()
+                    + quote.text_len()
+                    + TextSize::try_from(quote_pos + i).unwrap();
                 let range = TextRange::at(location, TextSize::from(2));
                 let mut diagnostic = Diagnostic::new(InvalidEscapeSequence(*next_char), range);
                 if autofix {
@@ -113,8 +113,6 @@ pub fn invalid_escape_sequence(
                 }
                 diagnostics.push(diagnostic);
             }
-
-            offset += line.len();
         }
     }
 

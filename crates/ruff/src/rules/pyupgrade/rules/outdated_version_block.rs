@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use log::error;
 use num_bigint::{BigInt, Sign};
 use ruff_text_size::{TextRange, TextSize};
-use rustpython_parser::ast::{Cmpop, Constant, Expr, ExprKind, Located, Location, Stmt};
+use rustpython_parser::ast::{Cmpop, Constant, Expr, ExprKind, Located, Stmt};
 use rustpython_parser::{lexer, Mode, Tok};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
@@ -37,13 +37,13 @@ struct BlockMetadata {
     /// The first non-whitespace token in the block.
     starter: Tok,
     /// The location of the first `elif` token, if any.
-    elif: Option<Location>,
+    elif: Option<TextSize>,
     /// The location of the `else` token, if any.
-    else_: Option<Location>,
+    else_: Option<TextSize>,
 }
 
 impl BlockMetadata {
-    const fn new(starter: Tok, elif: Option<Location>, else_: Option<Location>) -> Self {
+    const fn new(starter: Tok, elif: Option<TextSize>, else_: Option<TextSize>) -> Self {
         Self {
             starter,
             elif,
@@ -215,7 +215,7 @@ fn fix_py2_block(
                 .map(|contents| {
                     Edit::replacement(
                         contents,
-                        checker.locator.line_start(start.start()),
+                        checker.locator.line_start(stmt.start()),
                         stmt.end(),
                     )
                 })

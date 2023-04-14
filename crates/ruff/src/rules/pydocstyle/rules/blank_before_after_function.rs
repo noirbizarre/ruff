@@ -4,7 +4,7 @@ use ruff_text_size::{TextLen, TextRange};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
-use ruff_python_ast::newlines::StrExt;
+use ruff_python_ast::newlines::{StrExt, UniversalNewlineIterator};
 
 use crate::checkers::ast::Checker;
 use crate::docstrings::definition::{DefinitionKind, Docstring};
@@ -66,14 +66,14 @@ pub fn blank_before_after_function(checker: &mut Checker, docstring: &Docstring)
             .locator
             .slice(TextRange::new(parent.start(), docstring.start()));
 
-        let mut lines = before.universal_newlines().rev();
+        let mut lines = UniversalNewlineIterator::with_offset(before, parent.start()).rev();
         let mut blank_lines_before = 0usize;
-        let mut blank_lines_len = lines.next().unwrap_or_default().text_len();
+        let mut blank_lines_start = lines.next().map(|l| l.end()).unwrap_or_default();
 
         for line in lines {
             if line.trim().is_empty() {
                 blank_lines_before += 1;
-                blank_lines_len += line.text_len();
+                blank_lines_start = line.start();
             } else {
                 break;
             }
@@ -89,7 +89,7 @@ pub fn blank_before_after_function(checker: &mut Checker, docstring: &Docstring)
             if checker.patch(diagnostic.kind.rule()) {
                 // Delete the blank line before the docstring.
                 diagnostic.set_fix(Edit::deletion(
-                    docstring.start() - blank_lines_len,
+                    blank_lines_start,
                     docstring.start() - docstring.indentation.text_len(),
                 ));
             }
@@ -117,14 +117,15 @@ pub fn blank_before_after_function(checker: &mut Checker, docstring: &Docstring)
 
         // Count the number of blank lines after the docstring.
         let mut blank_lines_after = 0usize;
-        let mut lines = after.universal_newlines();
-        let first_line_len = lines.next().unwrap_or_default().text_len();
-        let mut blank_lines_len = first_line_len;
+        let mut lines = UniversalNewlineIterator::with_offset(after, docstring.end()).peekable();
+        let first_line_end = lines.next().map(|l| l.end()).unwrap_or_default();
+        let mut blank_lines_end = first_line_end;
 
-        for line in lines.by_ref() {
+        while let Some(line) = lines.peek() {
             if line.trim().is_empty() {
                 blank_lines_after += 1;
-                blank_lines_len += line.text_len();
+                blank_lines_end = line.end();
+                lines.next();
             } else {
                 break;
             }
@@ -134,7 +135,7 @@ pub fn blank_before_after_function(checker: &mut Checker, docstring: &Docstring)
         if blank_lines_after == 1
             && lines
                 .find(|line| !line.trim_start().starts_with('#'))
-                .map_or(false, |line| INNER_FUNCTION_OR_CLASS_REGEX.is_match(line))
+                .map_or(false, |line| INNER_FUNCTION_OR_CLASS_REGEX.is_match(&line))
         {
             return;
         }
@@ -148,10 +149,7 @@ pub fn blank_before_after_function(checker: &mut Checker, docstring: &Docstring)
             );
             if checker.patch(diagnostic.kind.rule()) {
                 // Delete the blank line after the docstring.
-                diagnostic.set_fix(Edit::deletion(
-                    docstring.end() - blank_lines_len,
-                    docstring.end() + first_line_len,
-                ));
+                diagnostic.set_fix(Edit::deletion(first_line_end, blank_lines_end));
             }
             checker.diagnostics.push(diagnostic);
         }

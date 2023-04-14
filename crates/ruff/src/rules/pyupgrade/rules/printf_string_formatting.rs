@@ -1,10 +1,10 @@
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextRange, TextSize};
 use std::str::FromStr;
 
 use rustpython_common::cformat::{
     CConversionFlags, CFormatPart, CFormatPrecision, CFormatQuantity, CFormatString,
 };
-use rustpython_parser::ast::{Constant, Expr, ExprKind, Location};
+use rustpython_parser::ast::{Constant, Expr, ExprKind};
 use rustpython_parser::{lexer, Mode, Tok};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
@@ -303,7 +303,7 @@ fn convertible(format_string: &CFormatString, params: &Expr) -> bool {
 /// UP031
 pub(crate) fn printf_string_formatting(checker: &mut Checker, expr: &Expr, right: &Expr) {
     // Grab each string segment (in case there's an implicit concatenation).
-    let mut strings: Vec<(Location, Location)> = vec![];
+    let mut strings: Vec<(TextSize, TextSize)> = vec![];
     let mut extension = None;
     for (start, tok, end) in lexer::lex_located(
         checker.locator.slice(expr.range()),

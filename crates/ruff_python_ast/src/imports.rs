@@ -1,6 +1,6 @@
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextRange, TextSize};
 use rustc_hash::FxHashMap;
-use rustpython_parser::ast::Location;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -106,12 +106,12 @@ impl FutureImport for AnyImport<'_> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ModuleImport {
     module: String,
-    location: Location,
-    end_location: Location,
+    location: TextSize,
+    end_location: TextSize,
 }
 
 impl ModuleImport {
-    pub fn new(module: String, location: Location, end_location: Location) -> Self {
+    pub fn new(module: String, location: TextSize, end_location: TextSize) -> Self {
         Self {
             module,
             location,

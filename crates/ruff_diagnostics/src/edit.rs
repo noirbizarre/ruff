@@ -1,5 +1,5 @@
 use ruff_text_size::{TextRange, TextSize};
-use rustpython_parser::ast::Location;
+
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -50,7 +50,7 @@ impl Edit {
     }
 
     /// Returns the start location of the edit in the source document.
-    pub const fn start(&self) -> Location {
+    pub const fn start(&self) -> TextSize {
         self.range.start()
     }
 

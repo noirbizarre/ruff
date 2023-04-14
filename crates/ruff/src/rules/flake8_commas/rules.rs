@@ -291,7 +291,7 @@ pub fn trailing_commas(
             let missing_comma = prev_prev.spanned.unwrap();
             let mut diagnostic = Diagnostic::new(
                 MissingTrailingComma,
-                TextRange::new(missing_comma.0, missing_comma.2),
+                TextRange::new(missing_comma.2, missing_comma.2),
             );
             if autofix.into() && settings.rules.should_fix(Rule::MissingTrailingComma) {
                 // Create a replacement that includes the final bracket (or other token),

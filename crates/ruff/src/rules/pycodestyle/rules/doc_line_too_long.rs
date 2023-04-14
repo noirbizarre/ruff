@@ -1,8 +1,9 @@
-use ruff_text_size::TextRange;
-use unicode_width::UnicodeWidthStr;
+use ruff_text_size::{TextLen, TextRange};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
+use ruff_python_ast::newlines::Line;
 
 use crate::rules::pycodestyle::helpers::is_overlong;
 use crate::settings::Settings;
@@ -40,11 +41,7 @@ impl Violation for DocLineTooLong {
 }
 
 /// W505
-pub fn doc_line_too_long(
-    line_range: TextRange,
-    line: &str,
-    settings: &Settings,
-) -> Option<Diagnostic> {
+pub(crate) fn doc_line_too_long(line: &Line, settings: &Settings) -> Option<Diagnostic> {
     let Some(limit) = settings.pycodestyle.max_doc_length else {
         return None;
     };
@@ -57,9 +54,21 @@ pub fn doc_line_too_long(
         settings.pycodestyle.ignore_overlong_task_comments,
         &settings.task_tags,
     ) {
+        // Compute the offset of the first character that exceeds the line width
+        let mut start = line.end();
+        let mut width = line_width;
+
+        for c in line.chars() {
+            width -= c.width().unwrap_or(0);
+            start -= c.text_len();
+            if width == limit {
+                break;
+            }
+        }
+
         Some(Diagnostic::new(
             DocLineTooLong(line_width, limit),
-            line_range,
+            TextRange::new(start, line.end()),
         ))
     } else {
         None

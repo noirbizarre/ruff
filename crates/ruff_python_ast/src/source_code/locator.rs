@@ -87,15 +87,15 @@ impl<'a> Locator<'a> {
     ///
     /// let locator = Locator::new("First line\nsecond line\r\nthird line");
     ///
-    /// assert_eq!(locator.line_end(TextSize::from(3)), TextSize::from(11));
-    /// assert_eq!(locator.line_end(TextSize::from(14)), TextSize::from(24));
-    /// assert_eq!(locator.line_end(TextSize::from(28)), TextSize::from(34));
+    /// assert_eq!(locator.full_line_end(TextSize::from(3)), TextSize::from(11));
+    /// assert_eq!(locator.full_line_end(TextSize::from(14)), TextSize::from(24));
+    /// assert_eq!(locator.full_line_end(TextSize::from(28)), TextSize::from(34));
     /// ```
     ///
     /// ## Panics
     ///
     /// If `offset` is passed the end of the content.
-    pub fn line_end(&self, offset: TextSize) -> TextSize {
+    pub fn full_line_end(&self, offset: TextSize) -> TextSize {
         let slice = &self.contents[usize::from(offset)..];
         if let Some(index) = slice.find(['\n', '\r']) {
             let bytes = slice.as_bytes();
@@ -115,6 +115,33 @@ impl<'a> Locator<'a> {
         }
     }
 
+    /// Computes the offset that is right before the newline character that ends `offset`'s line.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// # use ruff_text_size::{TextRange, TextSize};
+    /// # use ruff_python_ast::source_code::Locator;
+    ///
+    /// let locator = Locator::new("First line\nsecond line\r\nthird line");
+    ///
+    /// assert_eq!(locator.line_end(TextSize::from(3)), TextSize::from(10));
+    /// assert_eq!(locator.line_end(TextSize::from(14)), TextSize::from(22));
+    /// assert_eq!(locator.line_end(TextSize::from(28)), TextSize::from(34));
+    /// ```
+    ///
+    /// ## Panics
+    ///
+    /// If `offset` is passed the end of the content.
+    pub fn line_end(&self, offset: TextSize) -> TextSize {
+        let slice = &self.contents[usize::from(offset)..];
+        if let Some(index) = slice.find(['\n', '\r']) {
+            offset + TextSize::try_from(index).unwrap()
+        } else {
+            self.contents.text_len()
+        }
+    }
+
     /// Computes the range of this `offset`s line.
     ///
     /// The range starts at the beginning of the line and goes up to, and including, the new line character
@@ -128,8 +155,32 @@ impl<'a> Locator<'a> {
     ///
     /// let locator = Locator::new("First line\nsecond line\r\nthird line");
     ///
-    /// assert_eq!(locator.line_range(TextSize::from(3)), TextRange::new(TextSize::from(0), TextSize::from(11)));
-    /// assert_eq!(locator.line_range(TextSize::from(14)), TextRange::new(TextSize::from(11), TextSize::from(24)));
+    /// assert_eq!(locator.full_line_range(TextSize::from(3)), TextRange::new(TextSize::from(0), TextSize::from(11)));
+    /// assert_eq!(locator.full_line_range(TextSize::from(14)), TextRange::new(TextSize::from(11), TextSize::from(24)));
+    /// assert_eq!(locator.full_line_range(TextSize::from(28)), TextRange::new(TextSize::from(24), TextSize::from(34)));
+    /// ```
+    ///
+    /// ## Panics
+    /// If `offset` is out of bounds.
+    pub fn full_line_range(&self, offset: TextSize) -> TextRange {
+        TextRange::new(self.line_start(offset), self.full_line_end(offset))
+    }
+
+    /// Computes the range of this `offset`s line ending before the newline character.
+    ///
+    /// The range starts at the beginning of the line and goes up to, but excluding, the new line character
+    /// at the end of the line.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// # use ruff_text_size::{TextRange, TextSize};
+    /// # use ruff_python_ast::source_code::Locator;
+    ///
+    /// let locator = Locator::new("First line\nsecond line\r\nthird line");
+    ///
+    /// assert_eq!(locator.line_range(TextSize::from(3)), TextRange::new(TextSize::from(0), TextSize::from(10)));
+    /// assert_eq!(locator.line_range(TextSize::from(14)), TextRange::new(TextSize::from(11), TextSize::from(22)));
     /// assert_eq!(locator.line_range(TextSize::from(28)), TextRange::new(TextSize::from(24), TextSize::from(34)));
     /// ```
     ///
@@ -151,8 +202,31 @@ impl<'a> Locator<'a> {
     ///
     /// let locator = Locator::new("First line\nsecond line\r\nthird line");
     ///
-    /// assert_eq!(locator.line(TextSize::from(3)), "First line\n");
-    /// assert_eq!(locator.line(TextSize::from(14)), "second line\r\n");
+    /// assert_eq!(locator.full_line(TextSize::from(3)), "First line\n");
+    /// assert_eq!(locator.full_line(TextSize::from(14)), "second line\r\n");
+    /// assert_eq!(locator.full_line(TextSize::from(28)), "third line");
+    /// ```
+    ///
+    /// ## Panics
+    /// If `offset` is out of bounds.
+    pub fn full_line(&self, offset: TextSize) -> &'a str {
+        &self.contents[self.full_line_range(offset)]
+    }
+
+    /// Returns the text of the `offset`'s line.
+    ///
+    /// Excludes the newline characters at the end of the line.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// # use ruff_text_size::{TextRange, TextSize};
+    /// # use ruff_python_ast::source_code::Locator;
+    ///
+    /// let locator = Locator::new("First line\nsecond line\r\nthird line");
+    ///
+    /// assert_eq!(locator.line(TextSize::from(3)), "First line");
+    /// assert_eq!(locator.line(TextSize::from(14)), "second line");
     /// assert_eq!(locator.line(TextSize::from(28)), "third line");
     /// ```
     ///
@@ -176,12 +250,44 @@ impl<'a> Locator<'a> {
     /// let locator = Locator::new("First line\nsecond line\r\nthird line");
     ///
     /// assert_eq!(
-    ///     locator.lines_range(TextRange::new(TextSize::from(3), TextSize::from(5))),
+    ///     locator.full_lines_range(TextRange::new(TextSize::from(3), TextSize::from(5))),
     ///     TextRange::new(TextSize::from(0), TextSize::from(11))
     /// );
     /// assert_eq!(
-    ///     locator.lines_range(TextRange::new(TextSize::from(3), TextSize::from(14))),
+    ///     locator.full_lines_range(TextRange::new(TextSize::from(3), TextSize::from(14))),
     ///     TextRange::new(TextSize::from(0), TextSize::from(24))
+    /// );
+    /// ```
+    ///
+    /// ## Panics
+    /// If the start or end of `range` is out of bounds.
+    pub fn full_lines_range(&self, range: TextRange) -> TextRange {
+        TextRange::new(
+            self.line_start(range.start()),
+            self.full_line_end(range.end()),
+        )
+    }
+
+    /// Computes the range of all lines that this `range` covers.
+    ///
+    /// The range starts at the beginning of the line at `range.start()` and goes up to, but excluding, the new line character
+    /// at the end of `range.end()`'s line.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// # use ruff_text_size::{TextRange, TextSize};
+    /// # use ruff_python_ast::source_code::Locator;
+    ///
+    /// let locator = Locator::new("First line\nsecond line\r\nthird line");
+    ///
+    /// assert_eq!(
+    ///     locator.lines_range(TextRange::new(TextSize::from(3), TextSize::from(5))),
+    ///     TextRange::new(TextSize::from(0), TextSize::from(10))
+    /// );
+    /// assert_eq!(
+    ///     locator.lines_range(TextRange::new(TextSize::from(3), TextSize::from(14))),
+    ///     TextRange::new(TextSize::from(0), TextSize::from(22))
     /// );
     /// ```
     ///
@@ -227,11 +333,11 @@ impl<'a> Locator<'a> {
     ///
     /// assert_eq!(
     ///     locator.lines(TextRange::new(TextSize::from(3), TextSize::from(5))),
-    ///     "First line\n"
+    ///     "First line"
     /// );
     /// assert_eq!(
     ///     locator.lines(TextRange::new(TextSize::from(3), TextSize::from(14))),
-    ///     "First line\nsecond line\r\n"
+    ///     "First line\nsecond line"
     /// );
     /// ```
     ///
@@ -239,6 +345,34 @@ impl<'a> Locator<'a> {
     /// If the start or end of `range` is out of bounds.
     pub fn lines(&self, range: TextRange) -> &'a str {
         &self.contents[self.lines_range(range)]
+    }
+
+    /// Returns the text of all lines that include `range`.
+    ///
+    /// Includes the newline characters of the last line.
+    ///
+    /// ## Examples
+    ///
+    /// ```
+    /// # use ruff_text_size::{TextRange, TextSize};
+    /// # use ruff_python_ast::source_code::Locator;
+    ///
+    /// let locator = Locator::new("First line\nsecond line\r\nthird line");
+    ///
+    /// assert_eq!(
+    ///     locator.full_lines(TextRange::new(TextSize::from(3), TextSize::from(5))),
+    ///     "First line\n"
+    /// );
+    /// assert_eq!(
+    ///     locator.full_lines(TextRange::new(TextSize::from(3), TextSize::from(14))),
+    ///     "First line\nsecond line\r\n"
+    /// );
+    /// ```
+    ///
+    /// ## Panics
+    /// If the start or end of `range` is out of bounds.
+    pub fn full_lines(&self, range: TextRange) -> &'a str {
+        &self.contents[self.full_lines_range(range)]
     }
 
     // TODO remove
@@ -268,6 +402,10 @@ impl<'a> Locator<'a> {
     /// Return the number of bytes in the source code.
     pub const fn len(&self) -> usize {
         self.contents.len()
+    }
+
+    pub fn text_len(&self) -> TextSize {
+        self.contents.text_len()
     }
 
     /// Return `true` if the source code is empty.
