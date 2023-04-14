@@ -1,3 +1,4 @@
+use ruff_text_size::{TextRange, TextSize};
 use rustpython_parser::ast::{
     Alias, Arg, Arguments, Boolop, Cmpop, Comprehension, Constant, Excepthandler,
     ExcepthandlerKind, Expr, ExprContext, Keyword, MatchCase, Operator, Pattern, Stmt, StmtKind,
@@ -26,11 +27,10 @@ pub struct Block<'a> {
 
 pub struct ImportTracker<'a> {
     locator: &'a Locator<'a>,
-    directives: &'a IsortDirectives,
     is_stub: bool,
     blocks: Vec<Block<'a>>,
-    split_index: usize,
-    exclusion_index: usize,
+    splits: &'a [TextSize],
+    exclusions: &'a [TextRange],
     nested: bool,
 }
 
@@ -38,11 +38,10 @@ impl<'a> ImportTracker<'a> {
     pub fn new(locator: &'a Locator<'a>, directives: &'a IsortDirectives, is_stub: bool) -> Self {
         Self {
             locator,
-            directives,
             is_stub,
             blocks: vec![Block::default()],
-            split_index: 0,
-            exclusion_index: 0,
+            splits: &directives.splits,
+            exclusions: &directives.exclusions,
             nested: false,
         }
     }
@@ -118,26 +117,25 @@ where
 {
     fn visit_stmt(&mut self, stmt: &'b Stmt) {
         // Track manual splits.
-        for split in &self.directives.splits[self.split_index..] {
-            if stmt.start() >= *split {
+        for (index, split) in self.splits.iter().enumerate() {
+            if stmt.end() >= *split {
                 self.finalize(self.trailer_for(stmt));
-                self.split_index += 1;
+                self.splits = &self.splits[index + 1..];
             } else {
                 break;
             }
         }
 
-        for exclusion in &self.directives.exclusions[self.exclusion_index..] {
-            if exclusion.start() > stmt.start() {
-                self.exclusion_index += 1;
+        // Test if the statement is in an excluded range
+        let mut is_excluded = false;
+        for (index, exclusion) in self.exclusions.iter().enumerate() {
+            if exclusion.end() < stmt.start() {
+                self.exclusions = &self.exclusions[index + 1..];
+            } else {
+                is_excluded = exclusion.contains(stmt.start());
+                break;
             }
         }
-
-        let is_excluded = self
-            .directives
-            .exclusions
-            .get(self.exclusion_index)
-            .map_or(false, |range| range.contains(stmt.start()));
 
         // Track imports.
         if matches!(

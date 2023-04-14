@@ -216,7 +216,7 @@ fn add_noqa_inner(
     // Whether the file is exempted from all checks.
     // Codes that are globally exempted (within the current file).
     let exemption = file_exemption(locator.contents(), commented_ranges);
-    let mut directives = NoqaDirectives::from_commented_ranges(commented_ranges, locator);
+    let directives = NoqaDirectives::from_commented_ranges(commented_ranges, locator);
 
     // Mark any non-ignored diagnostics.
     for diagnostic in diagnostics {

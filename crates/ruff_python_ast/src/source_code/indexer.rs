@@ -82,6 +82,11 @@ impl Indexer {
     pub fn string_ranges(&self) -> &[TextRange] {
         &self.string_ranges
     }
+
+    pub fn is_continuation(&self, offset: TextSize, locator: &Locator) -> bool {
+        let line_start = locator.line_start(offset);
+        self.continuation_lines.binary_search(&line_start).is_ok()
+    }
 }
 
 #[cfg(test)]

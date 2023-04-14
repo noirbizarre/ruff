@@ -2,7 +2,6 @@
 
 use crate::noqa::NoqaMapping;
 use bitflags::bitflags;
-use itertools::Itertools;
 use ruff_python_ast::source_code::{Indexer, Locator};
 use ruff_text_size::{TextLen, TextRange, TextSize};
 use rustpython_parser::lexer::LexResult;
@@ -12,7 +11,7 @@ use crate::settings::Settings;
 
 bitflags! {
     pub struct Flags: u32 {
-        const NOQA = 0b0000_0001;
+        const NOQA  = 0b0000_0001;
         const ISORT = 0b0000_0010;
     }
 }
@@ -31,7 +30,7 @@ impl Flags {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct IsortDirectives {
     /// Ranges for which sorting is disabled
     pub exclusions: Vec<TextRange>,
@@ -172,10 +171,8 @@ pub fn extract_isort_directives(lxr: &[LexResult], locator: &Locator) -> IsortDi
     let mut exclusions: Vec<TextRange> = Vec::default();
     let mut splits: Vec<TextSize> = Vec::default();
     let mut off: Option<TextSize> = None;
-    let mut last: Option<TextSize> = None;
-    for &(start, ref tok, end) in lxr.iter().flatten() {
-        last = Some(end);
 
+    for &(start, ref tok, end) in lxr.iter().flatten() {
         let Tok::Comment(comment_text) = tok else {
             continue;
         };
@@ -199,8 +196,8 @@ pub fn extract_isort_directives(lxr: &[LexResult], locator: &Locator) -> IsortDi
             };
         } else if off.is_some() {
             if comment_text == "# isort: on" || comment_text == "# ruff: isort: on" {
-                if let Some(start) = off {
-                    exclusions.push(TextRange::new(start, end));
+                if let Some(exclusion_start) = off {
+                    exclusions.push(TextRange::new(exclusion_start, start));
                 }
                 off = None;
             }

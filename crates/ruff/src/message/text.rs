@@ -1,4 +1,3 @@
-use crate::directives::Flags;
 use crate::fs::relativize_path;
 use crate::message::diff::Diff;
 use crate::message::{Emitter, EmitterContext, Message};

@@ -34,7 +34,7 @@ pub fn annotate_imports<'a>(
                     let import_line_end = locator.line_end(import.end());
 
                     while let Some(comment) =
-                        comments_iter.next_if(|comment| comment.start() < import_line_end)
+                        comments_iter.next_if(|comment| comment.end() <= import_line_end)
                     {
                         inline.push(comment);
                     }
@@ -69,12 +69,15 @@ pub fn annotate_imports<'a>(
                     // single member, and it's a single-line import (like `from foo
                     // import bar  # noqa`).
                     let mut inline = vec![];
-                    if names.first().map_or(false, |alias| {
-                        locator.contains_line_break(TextRange::new(import.start(), alias.start()))
-                    }) {
+                    if names.len() > 1
+                        || names.first().map_or(false, |alias| {
+                            locator
+                                .contains_line_break(TextRange::new(import.start(), alias.start()))
+                        })
+                    {
                         let import_start_line_end = locator.line_end(import.start());
                         while let Some(comment) =
-                            comments_iter.next_if(|comment| comment.end() < import_start_line_end)
+                            comments_iter.next_if(|comment| comment.end() <= import_start_line_end)
                         {
                             inline.push(comment);
                         }
@@ -96,7 +99,7 @@ pub fn annotate_imports<'a>(
                             let mut alias_inline = vec![];
                             let alias_line_end = locator.line_end(alias.end());
                             while let Some(comment) =
-                                comments_iter.next_if(|comment| comment.end() < alias_line_end)
+                                comments_iter.next_if(|comment| comment.end() <= alias_line_end)
                             {
                                 alias_inline.push(comment);
                             }

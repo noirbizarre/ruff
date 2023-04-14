@@ -216,7 +216,7 @@ fn top_of_file_insertion(body: &[Stmt], locator: &Locator, stylist: &Stylist) ->
         }
 
         // Otherwise, advance to the next row.
-        locator.line_end(location)
+        locator.full_line_end(location)
     } else {
         TextSize::default()
     };
@@ -226,7 +226,7 @@ fn top_of_file_insertion(body: &[Stmt], locator: &Locator, stylist: &Stylist) ->
         lexer::lex_located(locator.after(location), Mode::Module, location).flatten()
     {
         if matches!(tok, Tok::Comment(..) | Tok::Newline) {
-            location = locator.line_end(end);
+            location = locator.full_line_end(end);
         } else {
             break;
         }

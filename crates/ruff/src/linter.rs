@@ -361,7 +361,7 @@ pub fn lint_only(
 
     result.map(|(diagnostics, imports)| {
         (
-            diagnostics_to_messages(diagnostics, path, settings, &locator, &directives),
+            diagnostics_to_messages(diagnostics, path, &locator, &directives),
             imports,
         )
     })
@@ -371,15 +371,12 @@ pub fn lint_only(
 fn diagnostics_to_messages(
     diagnostics: Vec<Diagnostic>,
     path: &Path,
-    settings: &Settings,
     locator: &Locator,
     directives: &Directives,
 ) -> Vec<Message> {
     let file = once_cell::unsync::Lazy::new(|| {
         let mut builder = SourceFileBuilder::new(&path.to_string_lossy());
-        if settings.show_source {
-            builder.set_source_code(&locator.to_source_code())
-        }
+        builder.set_source_code(&locator.to_source_code());
 
         builder.finish()
     });
@@ -520,7 +517,7 @@ This indicates a bug in `{}`. If you could open an issue at:
         return Ok(FixerResult {
             result: result.map(|(diagnostics, imports)| {
                 (
-                    diagnostics_to_messages(diagnostics, path, settings, &locator, &directives),
+                    diagnostics_to_messages(diagnostics, path, &locator, &directives),
                     imports,
                 )
             }),

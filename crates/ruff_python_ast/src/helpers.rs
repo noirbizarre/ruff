@@ -14,7 +14,7 @@ use rustpython_parser::{lexer, Mode, Tok};
 use smallvec::SmallVec;
 
 use crate::call_path::CallPath;
-use crate::newlines::StrExt;
+use crate::newlines::UniversalNewlineIterator;
 use crate::source_code::{Generator, Indexer, Locator, Stylist};
 use crate::visitor;
 use crate::visitor::Visitor;
@@ -876,14 +876,15 @@ pub fn trailing_comment_start_offset<T>(
     None
 }
 
-/// Return the number of trailing empty lines following a statement.
-pub fn count_trailing_lines_text_len(stmt: &Stmt, locator: &Locator) -> TextSize {
+/// Return the end offset at which the empty lines following a statement.
+pub fn trailing_lines_end(stmt: &Stmt, locator: &Locator) -> TextSize {
     let line_end = locator.full_line_end(stmt.end());
     let rest = &locator.contents()[usize::from(line_end)..];
-    rest.universal_newlines()
+
+    UniversalNewlineIterator::with_offset(rest, line_end)
         .take_while(|line| line.trim().is_empty())
-        .map(|line| line.text_len())
-        .sum()
+        .last()
+        .map_or(line_end, |l| l.full_end())
 }
 
 /// Return the range of the first parenthesis pair after a given [`Location`].
@@ -1056,15 +1057,16 @@ pub fn elif_else_range(stmt: &Stmt, locator: &Locator) -> Option<TextRange> {
 /// Return `true` if a `Stmt` appears to be part of a multi-statement line, with
 /// other statements preceding it.
 pub fn preceded_by_continuation(stmt: &Stmt, indexer: &Indexer, locator: &Locator) -> bool {
-    let line_start = locator.line_start(stmt.start());
+    let previous_line_end = locator.line_start(stmt.start());
+    let newline_pos = usize::from(previous_line_end).saturating_sub(1);
 
     // Compute start of preceding line
-    let newline_width = match locator.contents().as_bytes()[usize::from(line_start)] {
+    let newline_len = match locator.contents().as_bytes()[newline_pos] {
         b'\n' => {
             if locator
                 .contents()
                 .as_bytes()
-                .get(usize::from(line_start).saturating_sub(1))
+                .get(newline_pos.saturating_sub(1))
                 == Some(&b'\r')
             {
                 2
@@ -1077,11 +1079,8 @@ pub fn preceded_by_continuation(stmt: &Stmt, indexer: &Indexer, locator: &Locato
         _ => return false,
     };
 
-    let preceding_line_start = locator.line_start(line_start - TextSize::from(newline_width));
-    indexer
-        .continuation_line_starts()
-        .binary_search(&preceding_line_start)
-        .is_ok()
+    // See if the position is in the continuation line starts
+    indexer.is_continuation(previous_line_end - TextSize::from(newline_len), locator)
 }
 
 /// Return `true` if a `Stmt` appears to be part of a multi-statement line, with

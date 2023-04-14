@@ -1,15 +1,14 @@
 use std::path::Path;
 
 use itertools::{EitherOrBoth, Itertools};
-use ruff_text_size::{TextRange, TextSize};
+use ruff_text_size::TextRange;
 use rustpython_parser::ast::Stmt;
 use textwrap::indent;
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::helpers::{
-    count_trailing_lines_text_len, followed_by_multi_statement_line,
-    preceded_by_multi_statement_line,
+    followed_by_multi_statement_line, preceded_by_multi_statement_line, trailing_lines_end,
 };
 use ruff_python_ast::source_code::{Indexer, Locator, Stylist};
 use ruff_python_ast::whitespace::leading_space;
@@ -105,10 +104,10 @@ pub fn organize_imports(
         locator,
     );
 
-    let trailing_line_len = if block.trailer.is_none() {
-        TextSize::default()
+    let trailing_line_end = if block.trailer.is_none() {
+        locator.full_line_end(range.end())
     } else {
-        count_trailing_lines_text_len(block.imports.last().unwrap(), locator)
+        trailing_lines_end(block.imports.last().unwrap(), locator)
     };
 
     // Generate the sorted import block.
@@ -142,10 +141,7 @@ pub fn organize_imports(
     );
 
     // Expand the span the entire range, including leading and trailing space.
-    let range = TextRange::new(
-        locator.line_start(range.start()),
-        locator.full_line_end(range.end()) + trailing_line_len,
-    );
+    let range = TextRange::new(locator.line_start(range.start()), trailing_line_end);
     let actual = locator.slice(range);
     if matches_ignoring_indentation(actual, &expected) {
         None
