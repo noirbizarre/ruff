@@ -261,7 +261,7 @@ impl<'a> LogicalLine<'a> {
         }
     }
 
-    /// Returns the [`Location`] of the first token on the line or [`None`].
+    /// Returns the [`TextSize`] of the first token on the line or [`None`].
     pub fn first_token_location(&self) -> Option<TextSize> {
         self.tokens().first().map(|t| t.start())
     }

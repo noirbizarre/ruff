@@ -200,6 +200,7 @@ pub fn lint_path(
     let imports = imports.unwrap_or_default();
 
     if let Some(err) = parse_error {
+        // FIXME micha manually print parse errors to get line and column numbers
         // Notify the user of any parse errors.
         error!(
             "{}{}{} {err}",

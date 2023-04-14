@@ -12,7 +12,7 @@ use ruff_python_ast::source_code::{Locator, Stylist};
 
 use crate::cst::matchers::match_module;
 
-/// Safely adjust the indentation of the indented block at [`Range`].
+/// Safely adjust the indentation of the indented block at [`TextRange`].
 pub fn adjust_indentation(
     range: TextRange,
     indentation: &str,

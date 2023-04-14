@@ -51,7 +51,7 @@ pub(crate) fn line_too_long(line: &Line, settings: &Settings) -> Option<Diagnost
         let mut offset = line.end();
         let mut width = line_width;
 
-        for c in line.chars() {
+        for c in line.chars().rev() {
             width -= c.width().unwrap_or(0);
             offset -= c.text_len();
 

@@ -626,7 +626,7 @@ pub fn has_comments<T>(located: &Located<T>, locator: &Locator) -> bool {
     has_comments_in(TextRange::new(start, end), locator)
 }
 
-/// Returns `true` if a [`Range`] includes at least one comment.
+/// Returns `true` if a [`TextRange`] includes at least one comment.
 pub fn has_comments_in(range: TextRange, locator: &Locator) -> bool {
     let source = &locator.contents()[range];
 
@@ -887,7 +887,7 @@ pub fn trailing_lines_end(stmt: &Stmt, locator: &Locator) -> TextSize {
         .map_or(line_end, |l| l.full_end())
 }
 
-/// Return the range of the first parenthesis pair after a given [`Location`].
+/// Return the range of the first parenthesis pair after a given [`TextSize`].
 pub fn match_parens(start: TextSize, locator: &Locator) -> Option<TextRange> {
     let contents = &locator.contents()[usize::from(start)..];
 

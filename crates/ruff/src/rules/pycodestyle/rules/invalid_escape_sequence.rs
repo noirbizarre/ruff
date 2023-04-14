@@ -4,7 +4,7 @@ use ruff_text_size::{TextLen, TextRange, TextSize};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
-use ruff_python_ast::newlines::StrExt;
+use ruff_python_ast::newlines::UniversalNewlineIterator;
 use ruff_python_ast::source_code::Locator;
 
 /// ## What it does
@@ -73,10 +73,13 @@ pub fn invalid_escape_sequence(
     };
     let quote_pos = text.find(quote).unwrap();
     let prefix = text[..quote_pos].to_lowercase();
-    let body = &text[(quote_pos + quote.len())..(text.len() - quote.len())];
+    let body = &text[quote_pos + quote.len()..text.len() - quote.len()];
 
     if !prefix.contains('r') {
-        for line in body.universal_newlines() {
+        for line in UniversalNewlineIterator::with_offset(
+            body,
+            start + TextSize::try_from(quote_pos).unwrap() + quote.text_len(),
+        ) {
             let mut chars_iter = line.char_indices().peekable();
 
             while let Some((i, c)) = chars_iter.next() {
@@ -99,11 +102,8 @@ pub fn invalid_escape_sequence(
                     continue;
                 }
 
-                let location = start
-                    + line.start()
-                    + quote.text_len()
-                    + TextSize::try_from(quote_pos + i).unwrap();
-                let range = TextRange::at(location, TextSize::from(2));
+                let location = line.start() + TextSize::try_from(i).unwrap();
+                let range = TextRange::at(location, next_char.text_len() + TextSize::from(1));
                 let mut diagnostic = Diagnostic::new(InvalidEscapeSequence(*next_char), range);
                 if autofix {
                     diagnostic.set_fix(Edit::insertion(

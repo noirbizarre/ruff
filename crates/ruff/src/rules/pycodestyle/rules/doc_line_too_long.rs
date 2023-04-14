@@ -58,7 +58,7 @@ pub(crate) fn doc_line_too_long(line: &Line, settings: &Settings) -> Option<Diag
         let mut start = line.end();
         let mut width = line_width;
 
-        for c in line.chars() {
+        for c in line.chars().rev() {
             width -= c.width().unwrap_or(0);
             start -= c.text_len();
             if width == limit {
