@@ -40,7 +40,14 @@ pub fn no_newline_at_end_of_file(
     stylist: &Stylist,
     autofix: bool,
 ) -> Option<Diagnostic> {
-    if !locator.contents().ends_with(['\n', '\r']) {
+    let source = locator.contents();
+
+    // Ignore empty and BOM only files
+    if source.is_empty() || source == "\u{feff}" {
+        return None;
+    }
+
+    if !source.ends_with(['\n', '\r']) {
         // Note: if `lines.last()` is `None`, then `contents` is empty (and so we don't
         // want to raise W292 anyway).
         // Both locations are at the end of the file (and thus the same).

@@ -5226,7 +5226,7 @@ impl<'a> Checker<'a> {
                         if matches!(child.node, StmtKind::ImportFrom { .. }) {
                             diagnostic.set_parent(child.start());
                         }
-                        if let Some(fix) = fix.as_ref() {
+                        if let Some(fix) = &fix {
                             diagnostic.set_fix(fix.clone());
                         }
                         diagnostics.push(diagnostic);

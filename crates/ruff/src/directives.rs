@@ -172,7 +172,7 @@ pub fn extract_isort_directives(lxr: &[LexResult], locator: &Locator) -> IsortDi
     let mut splits: Vec<TextSize> = Vec::default();
     let mut off: Option<TextSize> = None;
 
-    for &(start, ref tok, end) in lxr.iter().flatten() {
+    for &(start, ref tok, _) in lxr.iter().flatten() {
         let Tok::Comment(comment_text) = tok else {
             continue;
         };

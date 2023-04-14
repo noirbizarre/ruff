@@ -1,5 +1,6 @@
 //! `NoQA` enforcement and validation.
 
+use itertools::Itertools;
 use ruff_text_size::{TextLen, TextRange, TextSize};
 
 use ruff_diagnostics::{Diagnostic, Edit};
@@ -32,7 +33,7 @@ pub fn check_noqa(
     let mut ignored_diagnostics = vec![];
 
     // Remove any ignored diagnostics.
-    for (index, diagnostic) in diagnostics.iter().enumerate() {
+    'outer: for (index, diagnostic) in diagnostics.iter().enumerate() {
         if matches!(diagnostic.kind.rule(), Rule::BlanketNOQA) {
             continue;
         }
@@ -53,29 +54,41 @@ pub fn check_noqa(
             FileExemption::None => {}
         }
 
-        let noqa_offset =
-            // Is the violation ignored by a `noqa` directive on the parent line?
-            noqa_line_for.resolve(diagnostic.parent.unwrap_or_else(|| diagnostic.start()));
+        let noqa_offsets = diagnostic
+            .parent
+            .into_iter()
+            .chain(std::iter::once(diagnostic.start()))
+            .map(|position| noqa_line_for.resolve(position))
+            .unique();
 
-        if let Some(directive_line) = noqa_directives.find_line_with_directive_mut(noqa_offset) {
-            match &directive_line.directive {
-                Directive::All(..) => {
-                    directive_line
-                        .matches
-                        .push(diagnostic.kind.rule().noqa_code());
-                    ignored_diagnostics.push(index);
-                    continue;
-                }
-                Directive::Codes(.., codes, _) => {
-                    if noqa::includes(diagnostic.kind.rule(), codes) {
+        for noqa_offset in noqa_offsets {
+            if let Some(directive_line) = noqa_directives.find_line_with_directive_mut(noqa_offset)
+            {
+                let suppressed = match &directive_line.directive {
+                    Directive::All(..) => {
                         directive_line
                             .matches
                             .push(diagnostic.kind.rule().noqa_code());
                         ignored_diagnostics.push(index);
-                        continue;
+                        true
                     }
+                    Directive::Codes(.., codes, _) => {
+                        if noqa::includes(diagnostic.kind.rule(), codes) {
+                            directive_line
+                                .matches
+                                .push(diagnostic.kind.rule().noqa_code());
+                            ignored_diagnostics.push(index);
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    Directive::None => unreachable!(),
+                };
+
+                if suppressed {
+                    continue 'outer;
                 }
-                Directive::None => unreachable!(),
             }
         }
     }
@@ -200,7 +213,8 @@ fn delete_noqa(
             noqa_range.end() + trailing_spaces,
         )
     {
-        Edit::deletion(line_range.start(), line_range.end())
+        let full_line_end = locator.full_line_end(line_range.end());
+        Edit::deletion(line_range.start(), full_line_end)
     }
     // Ex) `x = 1  # noqa`
     else if noqa_range.end() + trailing_spaces == line_range.end() {

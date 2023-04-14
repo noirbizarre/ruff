@@ -234,14 +234,28 @@ fn add_noqa_inner(
             FileExemption::None => {}
         }
 
-        if let Some(directive_line) = diagnostic
-            .parent
-            // Is the violation ignored by a `noqa` directive on the parent line?
-            .and_then(|parent| directives.find_line_with_directive(noqa_line_for.resolve(parent)))
-            // Or ignored by the directive itself
-            .or_else(|| {
-                directives.find_line_with_directive(noqa_line_for.resolve(diagnostic.start()))
-            })
+        // Is the violation ignored by a `noqa` directive on the parent line?
+        if let Some(parent) = diagnostic.parent {
+            if let Some(directive_line) =
+                directives.find_line_with_directive(noqa_line_for.resolve(parent))
+            {
+                match &directive_line.directive {
+                    Directive::All(..) => {
+                        continue;
+                    }
+                    Directive::Codes(.., codes, _) => {
+                        if includes(diagnostic.kind.rule(), &codes) {
+                            continue;
+                        }
+                    }
+                    Directive::None => {}
+                }
+            }
+        }
+
+        // Or ignored by the directive itself
+        if let Some(directive_line) =
+            directives.find_line_with_directive(noqa_line_for.resolve(diagnostic.start()))
         {
             match &directive_line.directive {
                 Directive::All(..) => {
@@ -258,7 +272,6 @@ fn add_noqa_inner(
                                 )
                             });
                     }
-
                     continue;
                 }
                 Directive::None => {}
@@ -397,12 +410,12 @@ impl<'a> NoqaDirectives<'a> {
         }
     }
 
-    pub fn find_line_index(&self, offset: TextSize) -> Option<usize> {
+    fn find_line_index(&self, offset: TextSize) -> Option<usize> {
         self.inner
             .binary_search_by(|directive| {
                 if directive.range.end() < offset {
                     std::cmp::Ordering::Less
-                } else if directive.range.contains(offset) {
+                } else if directive.range.contains_inclusive(offset) {
                     std::cmp::Ordering::Equal
                 } else {
                     std::cmp::Ordering::Greater

@@ -156,7 +156,7 @@ fn next_stmt_break(semicolon: TextSize, locator: &Locator) -> TextSize {
 
 /// Return `true` if a `Stmt` occurs at the end of a file.
 fn is_end_of_file(stmt: &Stmt, locator: &Locator) -> bool {
-    locator.full_line_end(stmt.end()) == locator.contents().text_len()
+    stmt.end() == locator.contents().text_len()
 }
 
 /// Return the `Fix` to use when deleting a `Stmt`.
