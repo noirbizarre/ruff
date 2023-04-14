@@ -253,10 +253,9 @@ pub fn typed_argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                             Diagnostic::new(TypedArgumentDefaultInStub, default.range());
 
                         if checker.patch(diagnostic.kind.rule()) {
-                            diagnostic.set_fix(Edit::replacement(
+                            diagnostic.set_fix(Edit::range_replacement(
                                 "...".to_string(),
-                                default.start(),
-                                default.end(),
+                                default.range(),
                             ));
                         }
 
@@ -280,10 +279,9 @@ pub fn typed_argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                             Diagnostic::new(TypedArgumentDefaultInStub, default.range());
 
                         if checker.patch(diagnostic.kind.rule()) {
-                            diagnostic.set_fix(Edit::replacement(
+                            diagnostic.set_fix(Edit::range_replacement(
                                 "...".to_string(),
-                                default.start(),
-                                default.end(),
+                                default.range(),
                             ));
                         }
 
@@ -310,10 +308,9 @@ pub fn argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                             Diagnostic::new(ArgumentDefaultInStub, default.range());
 
                         if checker.patch(diagnostic.kind.rule()) {
-                            diagnostic.set_fix(Edit::replacement(
+                            diagnostic.set_fix(Edit::range_replacement(
                                 "...".to_string(),
-                                default.start(),
-                                default.end(),
+                                default.range(),
                             ));
                         }
 
@@ -337,10 +334,9 @@ pub fn argument_simple_defaults(checker: &mut Checker, args: &Arguments) {
                             Diagnostic::new(ArgumentDefaultInStub, default.range());
 
                         if checker.patch(diagnostic.kind.rule()) {
-                            diagnostic.set_fix(Edit::replacement(
+                            diagnostic.set_fix(Edit::range_replacement(
                                 "...".to_string(),
-                                default.start(),
-                                default.end(),
+                                default.range(),
                             ));
                         }
 
@@ -366,11 +362,7 @@ pub fn assignment_default_in_stub(checker: &mut Checker, value: &Expr, annotatio
         let mut diagnostic = Diagnostic::new(AssignmentDefaultInStub, value.range());
 
         if checker.patch(diagnostic.kind.rule()) {
-            diagnostic.set_fix(Edit::replacement(
-                "...".to_string(),
-                value.start(),
-                value.end(),
-            ));
+            diagnostic.set_fix(Edit::range_replacement("...".to_string(), value.range()));
         }
 
         checker.diagnostics.push(diagnostic);

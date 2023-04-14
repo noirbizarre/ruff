@@ -91,10 +91,9 @@ pub fn use_capital_environment_variables(checker: &mut Checker, expr: &Expr) {
             value: capital_env_var.into(),
             kind: kind.clone(),
         });
-        diagnostic.set_fix(Edit::replacement(
+        diagnostic.set_fix(Edit::range_replacement(
             unparse_expr(&new_env_var, checker.stylist),
-            arg.start(),
-            arg.end(),
+            arg.range(),
         ));
     }
     checker.diagnostics.push(diagnostic);
@@ -133,10 +132,9 @@ fn check_os_environ_subscript(checker: &mut Checker, expr: &Expr) {
             value: capital_env_var.into(),
             kind: kind.clone(),
         });
-        diagnostic.set_fix(Edit::replacement(
+        diagnostic.set_fix(Edit::range_replacement(
             unparse_expr(&new_env_var, checker.stylist),
-            slice.start(),
-            slice.end(),
+            slice.range(),
         ));
     }
     checker.diagnostics.push(diagnostic);

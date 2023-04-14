@@ -147,7 +147,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                             name_range,
                         );
                         if checker.patch(diagnostic.kind.rule()) {
-                            diagnostic.set_fix(Edit::replacement(
+                            diagnostic.set_fix(Edit::range_replacement(
                                 format!(
                                     "({})",
                                     unparse_expr(
@@ -181,7 +181,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                             name_range,
                         );
                         if checker.patch(diagnostic.kind.rule()) {
-                            diagnostic.set_fix(Edit::replacement(
+                            diagnostic.set_fix(Edit::range_replacement(
                                 unparse_expr(
                                     &create_expr(ExprKind::List {
                                         elts: names
@@ -197,8 +197,8 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                     }),
                                     checker.stylist,
                                 ),
-                                name_range.start(),
-                                name_range.end(),
+                                expr.start(),
+                                expr.end(),
                             ));
                         }
                         checker.diagnostics.push(diagnostic);
@@ -223,7 +223,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                             expr.range(),
                         );
                         if checker.patch(diagnostic.kind.rule()) {
-                            diagnostic.set_fix(Edit::replacement(
+                            diagnostic.set_fix(Edit::range_replacement(
                                 unparse_expr(
                                     &create_expr(ExprKind::List {
                                         elts: elts.clone(),
@@ -231,8 +231,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                     }),
                                     checker.stylist,
                                 ),
-                                expr.start(),
-                                expr.end(),
+                                expr.range(),
                             ));
                         }
                         checker.diagnostics.push(diagnostic);
@@ -246,11 +245,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                         );
                         if checker.patch(diagnostic.kind.rule()) {
                             if let Some(content) = elts_to_csv(elts, checker) {
-                                diagnostic.set_fix(Edit::replacement(
-                                    content,
-                                    expr.start(),
-                                    expr.end(),
-                                ));
+                                diagnostic.set_fix(Edit::range_replacement(content, expr.range()));
                             }
                         }
                         checker.diagnostics.push(diagnostic);
@@ -274,7 +269,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                             expr.range(),
                         );
                         if checker.patch(diagnostic.kind.rule()) {
-                            diagnostic.set_fix(Edit::replacement(
+                            diagnostic.set_fix(Edit::range_replacement(
                                 format!(
                                     "({})",
                                     unparse_expr(
@@ -285,8 +280,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                                         checker.stylist,
                                     )
                                 ),
-                                expr.start(),
-                                expr.end(),
+                                expr.range(),
                             ));
                         }
                         checker.diagnostics.push(diagnostic);
@@ -300,11 +294,7 @@ fn check_names(checker: &mut Checker, decorator: &Expr, expr: &Expr) {
                         );
                         if checker.patch(diagnostic.kind.rule()) {
                             if let Some(content) = elts_to_csv(elts, checker) {
-                                diagnostic.set_fix(Edit::replacement(
-                                    content,
-                                    expr.start(),
-                                    expr.end(),
-                                ));
+                                diagnostic.set_fix(Edit::range_replacement(content, expr.range()));
                             }
                         }
                         checker.diagnostics.push(diagnostic);
@@ -377,10 +367,9 @@ fn handle_single_name(checker: &mut Checker, expr: &Expr, value: &Expr) {
     );
 
     if checker.patch(diagnostic.kind.rule()) {
-        diagnostic.set_fix(Edit::replacement(
+        diagnostic.set_fix(Edit::range_replacement(
             unparse_expr(&create_expr(value.node.clone()), checker.stylist),
-            expr.start(),
-            expr.end(),
+            expr.range(),
         ));
     }
     checker.diagnostics.push(diagnostic);

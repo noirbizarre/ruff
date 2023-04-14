@@ -97,10 +97,9 @@ pub fn not_tests(
                         if check_not_in {
                             let mut diagnostic = Diagnostic::new(NotInTest, operand.range());
                             if checker.patch(diagnostic.kind.rule()) && should_fix {
-                                diagnostic.set_fix(Edit::replacement(
+                                diagnostic.set_fix(Edit::range_replacement(
                                     compare(left, &[Cmpop::NotIn], comparators, checker.stylist),
-                                    expr.start(),
-                                    expr.end(),
+                                    expr.range(),
                                 ));
                             }
                             checker.diagnostics.push(diagnostic);
@@ -110,10 +109,9 @@ pub fn not_tests(
                         if check_not_is {
                             let mut diagnostic = Diagnostic::new(NotIsTest, operand.range());
                             if checker.patch(diagnostic.kind.rule()) && should_fix {
-                                diagnostic.set_fix(Edit::replacement(
+                                diagnostic.set_fix(Edit::range_replacement(
                                     compare(left, &[Cmpop::IsNot], comparators, checker.stylist),
-                                    expr.start(),
-                                    expr.end(),
+                                    expr.range(),
                                 ));
                             }
                             checker.diagnostics.push(diagnostic);
