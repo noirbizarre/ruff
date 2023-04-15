@@ -74,10 +74,9 @@ where
     let mut sqb_count = 0;
     let mut brace_count = 0;
 
-    for ((_, tok, _), (start, _, end)) in
-        lexer::lex_located(contents, Mode::Module, located.start())
-            .flatten()
-            .tuple_windows()
+    for ((tok, _), (_, range)) in lexer::lex_located(contents, Mode::Module, located.start())
+        .flatten()
+        .tuple_windows()
     {
         match tok {
             Tok::Lpar => {
@@ -118,7 +117,7 @@ where
         }
 
         if f(tok) {
-            return TextRange::new(start, end);
+            return range;
         }
     }
     unreachable!("No token after matched");
@@ -137,7 +136,7 @@ where
     let mut sqb_count = 0;
     let mut brace_count = 0;
 
-    for (start, tok, end) in lexer::lex_located(contents, Mode::Module, located.start()).flatten() {
+    for (tok, range) in lexer::lex_located(contents, Mode::Module, located.start()).flatten() {
         match tok {
             Tok::Lpar => {
                 par_count += 1;
@@ -177,7 +176,7 @@ where
         }
 
         if f(tok) {
-            return TextRange::new(start, end);
+            return range;
         }
     }
     unreachable!("No token after matched");

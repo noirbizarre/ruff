@@ -475,7 +475,7 @@ pub fn from_tokens(
     // concatenation, and should thus be handled as a single unit.
     let mut sequence = vec![];
     let mut state_machine = StateMachine::default();
-    for &(start, ref tok, end) in lxr.iter().flatten() {
+    for &(ref tok, range) in lxr.iter().flatten() {
         let is_docstring = state_machine.consume(tok);
 
         // If this is a docstring, consume the existing sequence, then consume the
@@ -485,13 +485,15 @@ pub fn from_tokens(
                 diagnostics.extend(strings(locator, &sequence, settings, autofix));
                 sequence.clear();
             }
-            if let Some(diagnostic) = docstring(locator, start, end, settings, autofix) {
+            if let Some(diagnostic) =
+                docstring(locator, range.start(), range.end(), settings, autofix)
+            {
                 diagnostics.push(diagnostic);
             }
         } else {
             if matches!(tok, Tok::String { .. }) {
                 // If this is a string, add it to the sequence.
-                sequence.push((start, end));
+                sequence.push((range.start(), range.end()));
             } else if !matches!(tok, Tok::Comment(..) | Tok::NonLogicalNewline) {
                 // Otherwise, consume the sequence.
                 if !sequence.is_empty() {

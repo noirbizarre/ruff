@@ -310,7 +310,7 @@ pub(crate) fn printf_string_formatting(
     // Grab each string segment (in case there's an implicit concatenation).
     let mut strings: Vec<(TextSize, TextSize)> = vec![];
     let mut extension = None;
-    for (start, tok, end) in lexer::lex_located(
+    for (tok, range) in lexer::lex_located(
         checker.locator.slice(expr.range()),
         Mode::Module,
         expr.start(),
@@ -318,10 +318,10 @@ pub(crate) fn printf_string_formatting(
     .flatten()
     {
         if matches!(tok, Tok::String { .. }) {
-            strings.push((start, end));
+            strings.push((range.start(), range.end()));
         } else if matches!(tok, Tok::Rpar) {
             // If we hit a right paren, we have to preserve it.
-            extension = Some((start, end));
+            extension = Some((range.start(), range.end()));
         } else if matches!(tok, Tok::Percent) {
             // Break as soon as we find the modulo symbol.
             break;

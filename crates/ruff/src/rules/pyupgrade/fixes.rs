@@ -89,23 +89,23 @@ pub fn remove_import_members(contents: &str, members: &[&str]) -> String {
     // Find all Tok::Name tokens that are not preceded by Tok::As, and all
     // Tok::Comma tokens.
     let mut prev_tok = None;
-    for (start, tok, end) in lexer::lex(contents, Mode::Module)
+    for (tok, range) in lexer::lex(contents, Mode::Module)
         .flatten()
-        .skip_while(|(_, tok, _)| !matches!(tok, Tok::Import))
+        .skip_while(|(tok, _)| !matches!(tok, Tok::Import))
     {
         if let Tok::Name { name } = &tok {
             if matches!(prev_tok, Some(Tok::As)) {
                 // Adjust the location to take the alias into account.
                 let last_range = names.last_mut().unwrap();
-                *last_range = TextRange::new(last_range.start(), end);
+                *last_range = TextRange::new(last_range.start(), range.end());
             } else {
                 if members.contains(&name.as_str()) {
                     removal_indices.push(names.len());
                 }
-                names.push(TextRange::new(start, end));
+                names.push(range);
             }
         } else if matches!(tok, Tok::Comma) {
-            commas.push(TextRange::new(start, end));
+            commas.push(range);
         }
         prev_tok = Some(tok);
     }

@@ -632,7 +632,7 @@ pub fn has_comments_in(range: TextRange, locator: &Locator) -> bool {
 
     for tok in lexer::lex_located(source, Mode::Module, range.start()) {
         match tok {
-            Ok((_, tok, _)) => {
+            Ok((tok, _)) => {
                 if matches!(tok, Tok::Comment(..)) {
                     return true;
                 }
@@ -895,18 +895,18 @@ pub fn match_parens(start: TextSize, locator: &Locator) -> Option<TextRange> {
     let mut fix_end = None;
     let mut count: usize = 0;
 
-    for (start, tok, end) in lexer::lex_located(contents, Mode::Module, start).flatten() {
+    for (tok, range) in lexer::lex_located(contents, Mode::Module, start).flatten() {
         match tok {
             Tok::Lpar => {
                 if count == 0 {
-                    fix_start = Some(start);
+                    fix_start = Some(range.start());
                 }
                 count += 1;
             }
             Tok::Rpar => {
                 count -= 1;
                 if count == 0 {
-                    fix_end = Some(end);
+                    fix_end = Some(range.end());
                     break;
                 }
             }
@@ -932,10 +932,9 @@ pub fn identifier_range(stmt: &Stmt, locator: &Locator) -> TextRange {
     ) {
         let contents = &locator.contents()[stmt.range()];
 
-        for (start, tok, end) in lexer::lex_located(contents, Mode::Module, stmt.start()).flatten()
-        {
+        for (tok, range) in lexer::lex_located(contents, Mode::Module, stmt.start()).flatten() {
             if matches!(tok, Tok::Name { .. }) {
-                return TextRange::new(start, end);
+                return range;
             }
         }
         error!("Failed to find identifier for {:?}", stmt);
@@ -953,8 +952,8 @@ pub fn find_names<'a, T>(
 
     lexer::lex_located(contents, Mode::Module, located.start())
         .flatten()
-        .filter(|(_, tok, _)| matches!(tok, Tok::Name { .. }))
-        .map(|(start, _, end)| TextRange::new(start, end))
+        .filter(|(tok, _)| matches!(tok, Tok::Name { .. }))
+        .map(|(_, range)| range)
 }
 
 /// Return the `Range` of `name` in `Excepthandler`.
@@ -971,9 +970,9 @@ pub fn excepthandler_name_range(handler: &Excepthandler, locator: &Locator) -> O
                 .flatten()
                 .tuple_windows()
                 .find(|(tok, next_tok)| {
-                    matches!(tok.1, Tok::As) && matches!(next_tok.1, Tok::Name { .. })
+                    matches!(tok.0, Tok::As) && matches!(next_tok.0, Tok::Name { .. })
                 })
-                .map(|((..), (location, _, end_location))| TextRange::new(location, end_location))
+                .map(|((..), (_, range))| range)
         }
         _ => None,
     }
@@ -991,8 +990,8 @@ pub fn except_range(handler: &Excepthandler, locator: &Locator) -> TextRange {
 
     lexer::lex_located(contents, Mode::Module, handler.start())
         .flatten()
-        .find(|(_, kind, _)| matches!(kind, Tok::Except { .. }))
-        .map(|(start, _, end)| TextRange::new(start, end))
+        .find(|(kind, _)| matches!(kind, Tok::Except { .. }))
+        .map(|(_, range)| range)
         .expect("Failed to find `except` range")
 }
 
@@ -1013,8 +1012,8 @@ pub fn else_range(stmt: &Stmt, locator: &Locator) -> Option<TextRange> {
 
             lexer::lex_located(contents, Mode::Module, body_end)
                 .flatten()
-                .find(|(_, kind, _)| matches!(kind, Tok::Else))
-                .map(|(start, _, end)| TextRange::new(start, end))
+                .find(|(kind, _)| matches!(kind, Tok::Else))
+                .map(|(_, range)| range)
         }
         _ => None,
     }
@@ -1025,8 +1024,8 @@ pub fn first_colon_range(range: TextRange, locator: &Locator) -> Option<TextRang
     let contents = &locator.contents()[range];
     let range = lexer::lex_located(contents, Mode::Module, range.start())
         .flatten()
-        .find(|(_, kind, _)| matches!(kind, Tok::Colon))
-        .map(|(start, _, end)| TextRange::new(start, end));
+        .find(|(kind, _)| matches!(kind, Tok::Colon))
+        .map(|(_, range)| range);
     range
 }
 
@@ -1050,8 +1049,8 @@ pub fn elif_else_range(stmt: &Stmt, locator: &Locator) -> Option<TextRange> {
     let contents = &locator.contents()[TextRange::new(start, end)];
     lexer::lex_located(contents, Mode::Module, start)
         .flatten()
-        .find(|(_, kind, _)| matches!(kind, Tok::Elif | Tok::Else))
-        .map(|(location, _, end_location)| TextRange::new(location, end_location))
+        .find(|(kind, _)| matches!(kind, Tok::Elif | Tok::Else))
+        .map(|(_, range)| range)
 }
 
 /// Return `true` if a `Stmt` appears to be part of a multi-statement line, with
@@ -1274,7 +1273,7 @@ pub fn locate_cmpops(contents: &str) -> Vec<LocatedCmpop> {
     let mut ops: Vec<LocatedCmpop> = vec![];
     let mut count: usize = 0;
     loop {
-        let Some((start, tok, end)) = tok_iter.next() else {
+        let Some((tok, range)) = tok_iter.next() else {
             break;
         };
         if matches!(tok, Tok::Lpar) {
@@ -1287,42 +1286,46 @@ pub fn locate_cmpops(contents: &str) -> Vec<LocatedCmpop> {
         if count == 0 {
             match tok {
                 Tok::Not => {
-                    if let Some((_, _, end)) =
-                        tok_iter.next_if(|(_, tok, _)| matches!(tok, Tok::In))
+                    if let Some((_, next_range)) =
+                        tok_iter.next_if(|(tok, _)| matches!(tok, Tok::In))
                     {
-                        ops.push(LocatedCmpop::new(start, end, Cmpop::NotIn));
+                        ops.push(LocatedCmpop::new(
+                            range.start(),
+                            next_range.end(),
+                            Cmpop::NotIn,
+                        ));
                     }
                 }
                 Tok::In => {
-                    ops.push(LocatedCmpop::new(start, end, Cmpop::In));
+                    ops.push(LocatedCmpop::with_range(Cmpop::In, range));
                 }
                 Tok::Is => {
-                    let op = if let Some((_, _, end)) =
-                        tok_iter.next_if(|(_, tok, _)| matches!(tok, Tok::Not))
+                    let op = if let Some((_, next_range)) =
+                        tok_iter.next_if(|(tok, _)| matches!(tok, Tok::Not))
                     {
-                        LocatedCmpop::new(start, end, Cmpop::IsNot)
+                        LocatedCmpop::new(range.start(), next_range.end(), Cmpop::IsNot)
                     } else {
-                        LocatedCmpop::new(start, end, Cmpop::Is)
+                        LocatedCmpop::with_range(Cmpop::Is, range)
                     };
                     ops.push(op);
                 }
                 Tok::NotEqual => {
-                    ops.push(LocatedCmpop::new(start, end, Cmpop::NotEq));
+                    ops.push(LocatedCmpop::with_range(Cmpop::NotEq, range));
                 }
                 Tok::EqEqual => {
-                    ops.push(LocatedCmpop::new(start, end, Cmpop::Eq));
+                    ops.push(LocatedCmpop::with_range(Cmpop::Eq, range));
                 }
                 Tok::GreaterEqual => {
-                    ops.push(LocatedCmpop::new(start, end, Cmpop::GtE));
+                    ops.push(LocatedCmpop::with_range(Cmpop::GtE, range));
                 }
                 Tok::Greater => {
-                    ops.push(LocatedCmpop::new(start, end, Cmpop::Gt));
+                    ops.push(LocatedCmpop::with_range(Cmpop::Gt, range));
                 }
                 Tok::LessEqual => {
-                    ops.push(LocatedCmpop::new(start, end, Cmpop::LtE));
+                    ops.push(LocatedCmpop::with_range(Cmpop::LtE, range));
                 }
                 Tok::Less => {
-                    ops.push(LocatedCmpop::new(start, end, Cmpop::Lt));
+                    ops.push(LocatedCmpop::with_range(Cmpop::Lt, range));
                 }
                 _ => {}
             }
