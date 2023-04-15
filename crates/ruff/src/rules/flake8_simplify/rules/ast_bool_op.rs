@@ -3,7 +3,7 @@ use std::iter;
 
 use itertools::Either::{Left, Right};
 use itertools::Itertools;
-use ruff_text_size::{TextRange, TextSize};
+use ruff_text_size::TextRange;
 use rustc_hash::FxHashMap;
 use rustpython_parser::ast::{Boolop, Cmpop, Constant, Expr, ExprContext, ExprKind, Unaryop};
 
@@ -491,11 +491,7 @@ pub fn expr_or_not_expr(checker: &mut Checker, expr: &Expr) {
     }
 }
 
-pub fn is_short_circuit(
-    ctx: &Context,
-    expr: &Expr,
-    expected_op: &Boolop,
-) -> Option<(TextSize, TextSize)> {
+pub fn is_short_circuit(ctx: &Context, expr: &Expr, expected_op: &Boolop) -> Option<TextRange> {
     let ExprKind::BoolOp { op, values, } = &expr.node else {
         return None;
     };
@@ -525,7 +521,7 @@ pub fn is_short_circuit(
         } = &value.node
         {
             if bool == &short_circuit_value {
-                return Some((location, expr.end()));
+                return Some(TextRange::new(location, expr.end()));
             }
         }
 
@@ -537,7 +533,7 @@ pub fn is_short_circuit(
         } = &next_value.node
         {
             if bool == &short_circuit_value {
-                return Some((location, expr.end()));
+                return Some(TextRange::new(location, expr.end()));
             }
         }
     }
@@ -546,32 +542,24 @@ pub fn is_short_circuit(
 
 /// SIM222
 pub fn expr_or_true(checker: &mut Checker, expr: &Expr) {
-    let Some((location, end_location)) = is_short_circuit(&checker.ctx, expr, &Boolop::Or) else {
+    let Some(range) = is_short_circuit(&checker.ctx, expr, &Boolop::Or) else {
         return;
     };
-    let mut diagnostic = Diagnostic::new(ExprOrTrue, TextRange::new(location, end_location));
+    let mut diagnostic = Diagnostic::new(ExprOrTrue, range);
     if checker.patch(diagnostic.kind.rule()) {
-        diagnostic.set_fix(Edit::replacement(
-            "True".to_string(),
-            location,
-            end_location,
-        ));
+        diagnostic.set_fix(Edit::range_replacement("True".to_string(), range));
     }
     checker.diagnostics.push(diagnostic);
 }
 
 /// SIM223
 pub fn expr_and_false(checker: &mut Checker, expr: &Expr) {
-    let Some((location, end_location)) = is_short_circuit(&checker.ctx, expr, &Boolop::And) else {
+    let Some(range) = is_short_circuit(&checker.ctx, expr, &Boolop::And) else {
         return;
     };
-    let mut diagnostic = Diagnostic::new(ExprAndFalse, TextRange::new(location, end_location));
+    let mut diagnostic = Diagnostic::new(ExprAndFalse, range);
     if checker.patch(diagnostic.kind.rule()) {
-        diagnostic.set_fix(Edit::replacement(
-            "False".to_string(),
-            location,
-            end_location,
-        ));
+        diagnostic.set_fix(Edit::range_replacement("False".to_string(), range));
     }
     checker.diagnostics.push(diagnostic);
 }

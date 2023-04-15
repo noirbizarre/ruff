@@ -74,8 +74,7 @@ pub fn check_tokens(
             if matches!(tok, Tok::String { .. } | Tok::Comment(_)) {
                 diagnostics.extend(ruff::rules::ambiguous_unicode_character(
                     locator,
-                    range.start(),
-                    range.end(),
+                    range,
                     if matches!(tok, Tok::String { .. }) {
                         if is_docstring {
                             Context::Docstring
@@ -96,13 +95,9 @@ pub fn check_tokens(
     if enforce_commented_out_code {
         for (tok, range) in tokens.iter().flatten() {
             if matches!(tok, Tok::Comment(_)) {
-                if let Some(diagnostic) = eradicate::rules::commented_out_code(
-                    locator,
-                    range.start(),
-                    range.end(),
-                    settings,
-                    autofix,
-                ) {
+                if let Some(diagnostic) =
+                    eradicate::rules::commented_out_code(locator, *range, settings, autofix)
+                {
                     diagnostics.push(diagnostic);
                 }
             }
@@ -115,8 +110,7 @@ pub fn check_tokens(
             if matches!(tok, Tok::String { .. }) {
                 diagnostics.extend(pycodestyle::rules::invalid_escape_sequence(
                     locator,
-                    range.start(),
-                    range.end(),
+                    *range,
                     autofix.into() && settings.rules.should_fix(Rule::InvalidEscapeSequence),
                 ));
             }
@@ -127,14 +121,9 @@ pub fn check_tokens(
         for (tok, range) in tokens.iter().flatten() {
             if matches!(tok, Tok::String { .. }) {
                 diagnostics.extend(
-                    pylint::rules::invalid_string_characters(
-                        locator,
-                        range.start(),
-                        range.end(),
-                        autofix.into(),
-                    )
-                    .into_iter()
-                    .filter(|diagnostic| settings.rules.enabled(diagnostic.kind.rule())),
+                    pylint::rules::invalid_string_characters(locator, *range, autofix.into())
+                        .into_iter()
+                        .filter(|diagnostic| settings.rules.enabled(diagnostic.kind.rule())),
                 );
             }
         }

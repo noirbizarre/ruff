@@ -58,13 +58,12 @@ fn extract_quote(text: &str) -> Result<&str> {
 /// W605
 pub fn invalid_escape_sequence(
     locator: &Locator,
-    start: TextSize,
-    end: TextSize,
+    range: TextRange,
     autofix: bool,
 ) -> Vec<Diagnostic> {
     let mut diagnostics = vec![];
 
-    let text = locator.slice(TextRange::new(start, end));
+    let text = locator.slice(range);
 
     // Determine whether the string is single- or triple-quoted.
     let Ok(quote) = extract_quote(text) else {
@@ -78,7 +77,7 @@ pub fn invalid_escape_sequence(
     if !prefix.contains('r') {
         for line in UniversalNewlineIterator::with_offset(
             body,
-            start + TextSize::try_from(quote_pos).unwrap() + quote.text_len(),
+            range.start() + TextSize::try_from(quote_pos).unwrap() + quote.text_len(),
         ) {
             let mut chars_iter = line.char_indices().peekable();
 
