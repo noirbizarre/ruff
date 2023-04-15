@@ -1,4 +1,4 @@
-use ruff_text_size::TextRange;
+use ruff_text_size::{TextLen, TextRange};
 
 use ruff_diagnostics::{AlwaysAutofixableViolation, Diagnostic, Edit};
 use ruff_macros::{derive_message_formats, violation};
@@ -52,14 +52,16 @@ pub fn commented_out_code(
     settings: &Settings,
     autofix: flags::Autofix,
 ) -> Option<Diagnostic> {
-    let line = locator.lines(range);
+    let line = locator.full_lines(range);
 
     // Verify that the comment is on its own line, and that it contains code.
     if is_standalone_comment(line) && comment_contains_code(line, &settings.task_tags[..]) {
         let mut diagnostic = Diagnostic::new(CommentedOutCode, range);
         if autofix.into() && settings.rules.should_fix(Rule::CommentedOutCode) {
-            let range = locator.full_lines_range(range);
-            diagnostic.set_fix(Edit::range_deletion(range));
+            diagnostic.set_fix(Edit::range_deletion(TextRange::at(
+                range.start(),
+                line.text_len(),
+            )));
         }
         Some(diagnostic)
     } else {

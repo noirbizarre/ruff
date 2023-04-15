@@ -180,8 +180,7 @@ pub fn unnecessary_encode_utf8(
                             remove_argument(
                                 checker.locator,
                                 func.start(),
-                                kwarg.start(),
-                                kwarg.end(),
+                                kwarg.range(),
                                 args,
                                 kwargs,
                                 false,
@@ -202,8 +201,7 @@ pub fn unnecessary_encode_utf8(
                             remove_argument(
                                 checker.locator,
                                 func.start(),
-                                arg.start(),
-                                arg.end(),
+                                arg.range(),
                                 args,
                                 kwargs,
                                 false,
@@ -231,8 +229,7 @@ pub fn unnecessary_encode_utf8(
                             remove_argument(
                                 checker.locator,
                                 func.start(),
-                                kwarg.start(),
-                                kwarg.end(),
+                                kwarg.range(),
                                 args,
                                 kwargs,
                                 false,
@@ -253,8 +250,7 @@ pub fn unnecessary_encode_utf8(
                             remove_argument(
                                 checker.locator,
                                 func.start(),
-                                arg.start(),
-                                arg.end(),
+                                arg.range(),
                                 args,
                                 kwargs,
                                 false,

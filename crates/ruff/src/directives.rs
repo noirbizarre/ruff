@@ -87,7 +87,6 @@ pub fn extract_noqa_line_for(
     indexer: &Indexer,
 ) -> NoqaMapping {
     let mut string_mappings = Vec::new();
-    let mut prev_non_newline_start: Option<TextSize> = None;
 
     for (tok, range) in lxr.iter().flatten() {
         match tok {
@@ -107,10 +106,6 @@ pub fn extract_noqa_line_for(
             }
 
             _ => {}
-        }
-
-        if prev_non_newline_start.is_none() {
-            prev_non_newline_start = Some(range.start());
         }
     }
 

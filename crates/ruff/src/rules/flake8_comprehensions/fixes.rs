@@ -120,7 +120,7 @@ pub fn fix_unnecessary_generator_set(
         }
     }
 
-    Ok(Edit::replacement(content, expr.start(), expr.end()))
+    Ok(Edit::range_replacement(content, expr.range()))
 }
 
 /// (C402) Convert `dict((x, x) for x in range(3))` to `{x: x for x in
@@ -190,7 +190,7 @@ pub fn fix_unnecessary_generator_dict(
         }
     }
 
-    Ok(Edit::replacement(content, expr.start(), expr.end()))
+    Ok(Edit::range_replacement(content, expr.range()))
 }
 
 /// (C403) Convert `set([x for x in y])` to `{x for x in y}`.
@@ -1108,7 +1108,7 @@ pub fn fix_unnecessary_map(
             }
         }
 
-        Ok(Edit::replacement(content, expr.start(), expr.end()))
+        Ok(Edit::range_replacement(content, expr.range()))
     } else {
         bail!("Should have two arguments");
     }

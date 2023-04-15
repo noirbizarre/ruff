@@ -33,10 +33,7 @@ regex = { version = "1.7.1" }
 ruff_text_size = { git = "https://github.com/charliermarsh/RustPython.git", rev = "f336c43058ce37594635fab1fb85d2ad288bdcdb" }
 rustc-hash = { version = "1.1.0" }
 rustpython-common = { git = "https://github.com/charliermarsh/RustPython.git", rev = "f336c43058ce37594635fab1fb85d2ad288bdcdb" }
-rustpython-parser = { features = [
-  "lalrpop",
-  "serde",
-], git = "https://github.com/charliermarsh/RustPython.git", rev = "f336c43058ce37594635fab1fb85d2ad288bdcdb" }
+rustpython-parser = { git = "https://github.com/charliermarsh/RustPython.git", rev = "f336c43058ce37594635fab1fb85d2ad288bdcdb" }
 schemars = { version = "0.8.12" }
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = { version = "1.0.93", features = ["preserve_order"] }

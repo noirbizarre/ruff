@@ -80,11 +80,10 @@ pub(crate) fn missing_whitespace(line: &LogicalLine, autofix: bool) -> Vec<Diagn
 
                     let kind = MissingWhitespace { token: kind };
 
-                    let range = token.range();
-                    let mut diagnostic = Diagnostic::new(kind, TextRange::empty(range.start()));
+                    let mut diagnostic = Diagnostic::new(kind, TextRange::empty(token.start()));
 
                     if autofix {
-                        diagnostic.set_fix(Edit::insertion(" ".to_string(), range.end()));
+                        diagnostic.set_fix(Edit::insertion(" ".to_string(), token.end()));
                     }
                     diagnostics.push(diagnostic);
                 }

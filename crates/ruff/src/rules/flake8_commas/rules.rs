@@ -285,15 +285,20 @@ pub fn trailing_commas(
             );
         if comma_required {
             let missing_comma = prev_prev.spanned.unwrap();
-            let range = TextRange::empty(missing_comma.1.end());
-            let mut diagnostic = Diagnostic::new(MissingTrailingComma, range);
+            let mut diagnostic = Diagnostic::new(
+                MissingTrailingComma,
+                TextRange::empty(missing_comma.1.end()),
+            );
             if autofix.into() && settings.rules.should_fix(Rule::MissingTrailingComma) {
                 // Create a replacement that includes the final bracket (or other token),
                 // rather than just inserting a comma at the end. This prevents the UP034 autofix
                 // removing any brackets in the same linter pass - doing both at the same time could
                 // lead to a syntax error.
-                let contents = locator.slice(range);
-                diagnostic.set_fix(Edit::range_replacement(format!("{contents},"), range));
+                let contents = locator.slice(missing_comma.1);
+                diagnostic.set_fix(Edit::range_replacement(
+                    format!("{contents},"),
+                    missing_comma.1,
+                ));
             }
             diagnostics.push(diagnostic);
         }

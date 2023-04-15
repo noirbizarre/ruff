@@ -4,7 +4,7 @@ use itertools::Itertools;
 use libcst_native::{
     Codegen, CodegenState, ImportNames, ParenthesizableWhitespace, SmallStatement, Statement,
 };
-use ruff_text_size::{TextLen, TextSize};
+use ruff_text_size::{TextLen, TextRange, TextSize};
 use rustpython_parser::ast::{ExcepthandlerKind, Expr, Keyword, Stmt, StmtKind};
 use rustpython_parser::{lexer, Mode, Tok};
 
@@ -140,7 +140,7 @@ fn next_stmt_break(semicolon: TextSize, locator: &Locator) -> TextSize {
             } else {
                 // Otherwise, find the start of the next statement. (Or, anything that isn't
                 // whitespace.)
-                let relative_offset = line.chars().position(|c| !c.is_whitespace()).unwrap();
+                let relative_offset = line.find(|c: char| !c.is_whitespace()).unwrap();
                 line.start() + TextSize::try_from(relative_offset).unwrap()
             };
     }
@@ -331,8 +331,7 @@ pub fn remove_unused_imports<'a>(
 pub fn remove_argument(
     locator: &Locator,
     call_at: TextSize,
-    expr_at: TextSize,
-    expr_end: TextSize,
+    expr_range: TextRange,
     args: &[Expr],
     keywords: &[Keyword],
     remove_parentheses: bool,
@@ -379,7 +378,7 @@ pub fn remove_argument(
         .iter()
         .map(Expr::start)
         .chain(keywords.iter().map(Keyword::start))
-        .any(|location| location > expr_at)
+        .any(|location| location > expr_range.start())
     {
         // Case 2: argument or keyword is _not_ the last node.
         let mut seen_comma = false;
@@ -396,7 +395,7 @@ pub fn remove_argument(
                 });
                 break;
             }
-            if range.start() == expr_at {
+            if range.start() == expr_range.start() {
                 fix_start = Some(range.start());
             }
             if fix_start.is_some() && matches!(tok, Tok::Comma) {
@@ -407,8 +406,8 @@ pub fn remove_argument(
         // Case 3: argument or keyword is the last node, so we have to find the last
         // comma in the stmt.
         for (tok, range) in lexer::lex_located(contents, Mode::Module, call_at).flatten() {
-            if range.start() == expr_at {
-                fix_end = Some(expr_end);
+            if range.start() == expr_range.start() {
+                fix_end = Some(expr_range.end());
                 break;
             }
             if matches!(tok, Tok::Comma) {

@@ -121,21 +121,21 @@ pub fn remove_import_members(contents: &str, members: &[&str]) -> String {
             continue;
         }
 
-        let (start_location, end_location) = if is_first {
-            (names[index].start(), names[index + 1].start())
+        let range = if is_first {
+            TextRange::new(names[index].start(), names[index + 1].start())
         } else {
-            (commas[index - 1].start(), names[index].end())
+            TextRange::new(commas[index - 1].start(), names[index].end())
         };
 
         // Add all contents from `last_pos` to `fix.location`.
         // It's possible that `last_pos` is after `fix.location`, if we're removing the
         // first _two_ members.
-        if start_location > last_pos {
-            let slice = locator.slice(TextRange::new(last_pos, start_location));
+        if range.start() > last_pos {
+            let slice = locator.slice(TextRange::new(last_pos, range.start()));
             output.push_str(slice);
         }
 
-        last_pos = end_location;
+        last_pos = range.end();
     }
 
     // Add the remaining content.
