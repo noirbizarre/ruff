@@ -2081,6 +2081,7 @@ dependencies = [
  "is-macro",
  "itertools",
  "log",
+ "memchr",
  "num-bigint",
  "num-traits",
  "once_cell",
